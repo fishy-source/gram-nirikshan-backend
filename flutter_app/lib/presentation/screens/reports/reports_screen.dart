@@ -72,7 +72,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       // Download file using Dio
       final dio = Dio();
       
-      const flutterSecureStorage = FlutterSecureStorage();
+      final flutterSecureStorage = FlutterSecureStorage();
       final tokenValue = await flutterSecureStorage.read(key: AppConstants.accessTokenKey);
 
       await dio.download(
@@ -279,7 +279,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 class signupStorage {
   const signupStorage();
   Future<String?> readToken() async {
-    final storage = const FlutterSecureStorage();
+    final storage = FlutterSecureStorage();
     return await storage.read(key: AppConstants.accessTokenKey);
   }
 }
