@@ -28,8 +28,18 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
-        encoded_password = quote_plus(self.DB_PASSWORD)
-        return f"mysql+aiomysql://{self.DB_USER}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        import os
+        host = os.getenv("DB_HOST") or os.getenv("MYSQLHOST") or self.DB_HOST
+        try:
+            port = int(os.getenv("DB_PORT") or os.getenv("MYSQLPORT") or self.DB_PORT)
+        except ValueError:
+            port = 3306
+        name = os.getenv("DB_NAME") or os.getenv("MYSQLDATABASE") or self.DB_NAME
+        user = os.getenv("DB_USER") or os.getenv("MYSQLUSER") or self.DB_USER
+        password = os.getenv("DB_PASSWORD") or os.getenv("MYSQLPASSWORD") or self.DB_PASSWORD
+
+        encoded_password = quote_plus(password)
+        return f"mysql+aiomysql://{user}:{encoded_password}@{host}:{port}/{name}"
 
     # JWT
     JWT_SECRET_KEY: str = secrets.token_urlsafe(32)
