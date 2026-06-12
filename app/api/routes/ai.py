@@ -52,11 +52,14 @@ async def call_gemini(prompt: str, language: str = "en") -> str:
                 "AI Assistant not available. Please configure GEMINI_API_KEY.")
 
     try:
+        # Prepend system instruction to prompt for backwards compatibility with older google-generativeai versions (e.g. 0.3.2)
+        system_instruction = SYSTEM_PROMPT_HI if language == "hi" else SYSTEM_PROMPT_EN
+        full_prompt = f"{system_instruction}\n\nUser Query:\n{prompt}"
+        
         model = genai.GenerativeModel(
             model_name=settings.GEMINI_MODEL,
-            system_instruction=SYSTEM_PROMPT_HI if language == "hi" else SYSTEM_PROMPT_EN,
         )
-        response = model.generate_content(prompt)
+        response = model.generate_content(full_prompt)
         return response.text
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
