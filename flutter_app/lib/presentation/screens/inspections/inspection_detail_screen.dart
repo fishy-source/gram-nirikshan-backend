@@ -30,6 +30,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     _tabController = TabController(length: 4, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<InspectionProvider>().loadInspectionDetail(widget.inspectionId);
+      context.read<InspectionProvider>().loadApprovalHistory(widget.inspectionId);
     });
   }
 
@@ -58,7 +59,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                 pinned: true,
                 backgroundColor: AppTheme.primaryColor,
                 flexibleSpace: FlexibleSpaceBar(
-                  title: Text(inspection.inspectionId,
+                  title: Text(inspection.isDraft ? 'निरीक्षण मसौदा' : inspection.inspectionId,
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
                   background: Container(
                     decoration: const BoxDecoration(
@@ -144,7 +145,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       child: Column(
         children: [
           _buildInfoCard('बुनियादी जानकारी', [
-            _InfoRow(Icons.badge_rounded, 'निरीक्षण ID', inspection.inspectionId),
+            if (!inspection.isDraft)
+              _InfoRow(Icons.badge_rounded, 'निरीक्षण ID', inspection.inspectionId),
             if (inspection.inspectionType != null)
               _InfoRow(Icons.category_rounded, 'प्रकार', inspection.inspectionType!),
             if (inspection.projectName != null)
@@ -155,6 +157,20 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
               _InfoRow(Icons.calendar_today_rounded, 'निरीक्षण तिथि', _formatDate(inspection.inspectionDate!)),
             _InfoRow(Icons.person_rounded, 'अभियंता', inspection.engineer?.name ?? 'N/A'),
           ]),
+          if (!inspection.isDraft) ...[
+            const SizedBox(height: 12),
+            _buildInfoCard('अनुमोदन एवं समीक्षा विवरण', [
+              _InfoRow(Icons.info_outline_rounded, 'वर्तमान स्थिति (Status)', inspection.statusLabel),
+              if (inspection.status == 'submitted')
+                _InfoRow(Icons.person_outline_rounded, 'किसको भेजा गया है', 'सहायक अभियंता (AE) - समीक्षा के लिए लंबित'),
+              if (inspection.status == 'verified')
+                _InfoRow(Icons.person_outline_rounded, 'किसको भेजा गया है', 'अधिशासी अभियंता (XEN) - समीक्षा के लिए लंबित'),
+              if (inspection.status == 'approved')
+                _InfoRow(Icons.check_circle_outline_rounded, 'सत्यापन/स्वीकृति', 'अधिकारी द्वारा स्वीकृत (Approved)'),
+              if (inspection.status == 'rejected')
+                _InfoRow(Icons.highlight_off_rounded, 'सत्यापन/स्वीकृति', 'अधिकारी द्वारा अस्वीकृत (Rejected)'),
+            ]),
+          ],
           if (inspection.observations != null && inspection.observations!.isNotEmpty) ...[
             const SizedBox(height: 12),
             _buildTextCard('अवलोकन (Observations)', inspection.observations!),
@@ -370,6 +386,12 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           _buildWorkflowStepper(inspection.status),
           const SizedBox(height: 20),
 
+          // Approval Trail / History
+          if (provider.approvals.isNotEmpty) ...[
+            _buildApprovalHistoryCard(provider.approvals),
+            const SizedBox(height: 20),
+          ],
+
           // Approval Action (for approvers)
           if (user?.canApprove == true && inspection.status == 'submitted') ...[
             _buildApprovalActions(inspection, provider),
@@ -487,17 +509,10 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       child: Row(children: [
         if (inspection.isDraft && user?.isJE == true) ...[
           Expanded(child: ElevatedButton.icon(
-            onPressed: () => Navigator.pushNamed(context, '/inspections/edit', arguments: inspection.id),
-            icon: const Icon(Icons.edit_rounded, size: 18),
-            label: const Text('संपादित करें'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppTheme.primaryColor,
-                side: const BorderSide(color: AppTheme.primaryColor)),
-          )),
-          const SizedBox(width: 8),
-          Expanded(child: ElevatedButton.icon(
             onPressed: () => _handleSubmit(inspection, provider),
             icon: const Icon(Icons.send_rounded, size: 18),
-            label: const Text('जमा करें'),
+            label: const Text('निरीक्षण जमा करें (Submit Inspection)'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
           )),
         ] else ...[
           Expanded(child: ElevatedButton.icon(
@@ -681,6 +696,115 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
 
   String _formatDate(DateTime dt) => '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
   String _formatDateTime(DateTime dt) => '${_formatDate(dt)} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
+  Widget _buildApprovalHistoryCard(List<ApprovalModel> approvals) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'समीक्षा एवं अनुमोदन इतिहास (Approval History)',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primaryColor),
+          ),
+          const SizedBox(height: 12),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: approvals.length,
+            itemBuilder: (context, idx) {
+              final a = approvals[idx];
+              final actionLabel = _getApprovalActionLabel(a.action);
+              final statusColor = _getApprovalActionColor(a.action);
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: statusColor.withOpacity(0.2), width: 1),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'स्तर (Level): ${a.level}',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            actionLabel,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'अधिकारी: ${a.approver?.nameHindi ?? a.approver?.name ?? 'अज्ञात अधिकारी'} (${a.approver?.designation ?? 'N/A'})',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                    if (a.remarks != null && a.remarks!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'टिप्पणी: ${a.remarks}',
+                        style: const TextStyle(fontSize: 13, color: Colors.black54),
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Text(
+                      'दिनांक: ${_formatDateTime(a.createdAt)}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getApprovalActionLabel(String action) {
+    const labels = {
+      'pending': 'लंबित',
+      'approved': 'स्वीकृत',
+      'rejected': 'अस्वीकृत',
+      'forwarded': 'अग्रेषित / जमा किया',
+    };
+    return labels[action] ?? action.toUpperCase();
+  }
+
+  Color _getApprovalActionColor(String action) {
+    switch (action) {
+      case 'approved':
+        return AppTheme.successColor;
+      case 'rejected':
+        return AppTheme.errorColor;
+      case 'forwarded':
+        return AppTheme.primaryColor;
+      default:
+        return Colors.orange;
+    }
+  }
 }
 
 class _InfoRow {

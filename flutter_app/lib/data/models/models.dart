@@ -236,3 +236,36 @@ class DashboardStats {
         pendingApprovals: json['pending_approvals'] ?? 0,
       );
 }
+
+class ApprovalModel {
+  final String id;
+  final String inspectionId;
+  final String approverId;
+  final String level;
+  final String action;
+  final String? remarks;
+  final DateTime createdAt;
+  final UserModel? approver;
+
+  ApprovalModel({
+    required this.id,
+    required this.inspectionId,
+    required this.approverId,
+    required this.level,
+    required this.action,
+    this.remarks,
+    required this.createdAt,
+    this.approver,
+  });
+
+  factory ApprovalModel.fromJson(Map<String, dynamic> json) => ApprovalModel(
+        id: json['id'],
+        inspectionId: json['inspection_id'],
+        approverId: json['approver_id'],
+        level: json['level'],
+        action: json['action'],
+        remarks: json['remarks'],
+        createdAt: DateTime.parse(json['created_at']),
+        approver: json['approver'] != null ? UserModel.fromJson(json['approver']) : null,
+      );
+}

@@ -191,6 +191,9 @@ class ApiService {
   Future<Response> suggestReport(String inspectionId) =>
       _dio.post('/ai/suggest-report', data: {'inspection_id': inspectionId});
 
+  Future<Response> getInspectionApprovals(String inspectionId) =>
+      _dio.get('/inspections/$inspectionId/approvals');
+
   Future<Response> inspectionGuide(String type, {String language = 'hi'}) =>
       _dio.post('/ai/inspection-guide', queryParameters: {'inspection_type': type, 'language': language});
 

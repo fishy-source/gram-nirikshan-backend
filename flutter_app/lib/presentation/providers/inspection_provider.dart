@@ -10,6 +10,7 @@ class InspectionProvider with ChangeNotifier {
   List<InspectionModel> _inspections = [];
   InspectionModel? _selectedInspection;
   List<PanchayatModel> _panchayats = [];
+  List<ApprovalModel> _approvals = [];
   bool _isLoading = false;
   String? _error;
   int _currentPage = 1;
@@ -19,6 +20,7 @@ class InspectionProvider with ChangeNotifier {
   List<InspectionModel> get inspections => _inspections;
   InspectionModel? get selectedInspection => _selectedInspection;
   List<PanchayatModel> get panchayats => _panchayats;
+  List<ApprovalModel> get approvals => _approvals;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get hasMore => _hasMore;
@@ -170,6 +172,19 @@ class InspectionProvider with ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  Future<List<ApprovalModel>> loadApprovalHistory(String id) async {
+    try {
+      final response = await _api.getInspectionApprovals(id);
+      _approvals = (response.data as List).map((j) => ApprovalModel.fromJson(j)).toList();
+      notifyListeners();
+      return _approvals;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return [];
+    }
   }
 
   Future<bool> suggestAIReport(String id) async {
