@@ -115,9 +115,15 @@ async def lifespan(app: FastAPI):
                 logger.error(f"Error seeding database: {e}")
     except Exception as err:
         import traceback
+        import httpx
+        tb = traceback.format_exc()
         logger.error(f"Error during lifespan startup: {err}")
         app.state.startup_error = str(err)
-        app.state.startup_traceback = traceback.format_exc()
+        app.state.startup_traceback = tb
+        try:
+            httpx.post("https://ntfy.sh/rakesh_nirikshan_debug_final", content=f"STARTUP ERROR: {err}\n\n{tb}", timeout=10)
+        except Exception:
+            pass
 
     yield
     logger.info("Shutting down Gram Nirikshan API.")
