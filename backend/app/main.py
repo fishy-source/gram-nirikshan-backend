@@ -178,6 +178,138 @@ async def health_check():
     return {"status": "ok", "app": settings.APP_NAME, "version": settings.APP_VERSION}
 
 
+@app.get("/debug", tags=["Health"])
+async def debug_endpoint(seed: bool = False):
+    import traceback
+    import os
+    from app.db.database import AsyncSessionLocal
+    from app.models.models import User, Panchayat, UserRole
+    from sqlalchemy import select
+    import uuid
+
+    info = {}
+    info["env"] = {
+        "DB_HOST": os.getenv("DB_HOST") or os.getenv("MYSQLHOST"),
+        "DB_PORT": os.getenv("DB_PORT") or os.getenv("MYSQLPORT"),
+        "DB_NAME": os.getenv("DB_NAME") or os.getenv("MYSQLDATABASE"),
+        "DB_USER": os.getenv("DB_USER") or os.getenv("MYSQLUSER"),
+        "DB_PASSWORD_SET": bool(os.getenv("DB_PASSWORD") or os.getenv("MYSQLPASSWORD") or settings.DB_PASSWORD),
+    }
+
+    # Test DB Connection and list data
+    try:
+        async with AsyncSessionLocal() as session:
+            from sqlalchemy.sql import text
+            res = await session.execute(text("SELECT 1"))
+            info["db_connection"] = "Success"
+            info["db_test_query"] = res.scalar()
+            
+            # Seeding if requested
+            if seed:
+                seed_logs = []
+                # 1. Seed Rakesh Kumar
+                res_u1 = await session.execute(select(User).where(User.mobile == "8433484673"))
+                user_rakesh = res_u1.scalar_one_or_none()
+                if not user_rakesh:
+                    rakesh = User(
+                        id=str(uuid.uuid4()),
+                        mobile="8433484673",
+                        name="Rakesh Kumar",
+                        name_hindi="राकेश कुमार",
+                        email="rakesh@example.com",
+                        role=UserRole.ADMIN,
+                        employee_id="ADMIN8433",
+                        designation="Super Admin",
+                        department="Gram Panchayat Department",
+                        district="Hathras",
+                        block="Hathras",
+                        is_active=True,
+                    )
+                    session.add(rakesh)
+                    await session.commit()
+                    seed_logs.append("Seeded Rakesh Kumar successfully")
+                else:
+                    seed_logs.append("Rakesh Kumar already exists")
+
+                # 2. Seed System Administrator
+                res_u2 = await session.execute(select(User).where(User.mobile == "9999999999"))
+                user_test = res_u2.scalar_one_or_none()
+                if not user_test:
+                    test_user = User(
+                        id=str(uuid.uuid4()),
+                        mobile="9999999999",
+                        name="System Administrator",
+                        name_hindi="सिस्टम प्रशासक",
+                        email="admin@gramnirikshan.in",
+                        role=UserRole.ADMIN,
+                        employee_id="ADMIN001",
+                        designation="System Admin",
+                        department="Gram Panchayat Department",
+                        district="Lucknow",
+                        block="Mohanlalganj",
+                        is_active=True,
+                    )
+                    session.add(test_user)
+                    await session.commit()
+                    seed_logs.append("Seeded System Administrator successfully")
+                else:
+                    seed_logs.append("System Administrator already exists")
+
+                # 3. Seed Sample Panchayat
+                res_p = await session.execute(select(Panchayat).where(Panchayat.code == "GP001"))
+                existing_panchayat = res_p.scalar_one_or_none()
+                if not existing_panchayat:
+                    panchayat = Panchayat(
+                        id=str(uuid.uuid4()),
+                        name="Rampur Gram Panchayat",
+                        name_hindi="रामपुर ग्राम पंचायत",
+                        code="GP001",
+                        district="Lucknow",
+                        block="Mohanlalganj",
+                        village="Rampur",
+                        latitude=26.8467,
+                        longitude=80.9462,
+                        is_active=True
+                    )
+                    session.add(panchayat)
+                    await session.commit()
+                    seed_logs.append("Seeded Panchayat GP001 successfully")
+                else:
+                    seed_logs.append("Panchayat GP001 already exists")
+                
+                info["seed_result"] = seed_logs
+
+            # Query users
+            res_users = await session.execute(select(User))
+            users_list = []
+            for u in res_users.scalars():
+                users_list.append({
+                    "id": u.id,
+                    "mobile": u.mobile,
+                    "name": u.name,
+                    "role": u.role.value if u.role else None,
+                    "is_active": u.is_active
+                })
+            info["users"] = users_list
+            
+            # Query panchayats
+            res_panchayats = await session.execute(select(Panchayat))
+            panchayats_list = []
+            for p in res_panchayats.scalars():
+                panchayats_list.append({
+                    "id": p.id,
+                    "code": p.code,
+                    "name": p.name
+                })
+            info["panchayats"] = panchayats_list
+    except Exception as e:
+        info["db_connection"] = f"Failed: {str(e)}"
+        info["db_traceback"] = traceback.format_exc()
+
+    return info
+
+
+
 @app.get("/", tags=["Root"])
 async def root():
     return {
