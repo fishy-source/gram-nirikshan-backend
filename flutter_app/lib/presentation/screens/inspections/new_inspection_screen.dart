@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/services/api_service.dart';
 import '../../providers/inspection_provider.dart';
 import '../../providers/auth_provider.dart';
 
@@ -21,11 +25,17 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
   final _projectCodeController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _panchayatNameController = TextEditingController();
+  final _captionController = TextEditingController();
   
   String? _selectedPanchayatId;
   String? _selectedType;
   DateTime? _selectedDate;
   bool _isManualPanchayat = false;
+
+  final _picker = ImagePicker();
+  File? _imageFile;
+  Position? _currentPosition;
+  String _gpsStatus = 'GPS स्थान प्राप्त नहीं हुआ';
 
   @override
   void initState() {
@@ -38,6 +48,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<InspectionProvider>().loadPanchayats();
     });
+    _determinePosition();
   }
 
   @override
@@ -47,6 +58,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     _projectCodeController.dispose();
     _descriptionController.dispose();
     _panchayatNameController.dispose();
+    _captionController.dispose();
     super.dispose();
   }
 
@@ -62,6 +74,61 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
       setState(() {
         _selectedDate = picked;
       });
+    }
+  }
+
+  Future<void> _determinePosition() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() => _gpsStatus = 'GPS बंद है');
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() => _gpsStatus = 'GPS अनुमति अस्वीकृत');
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() => _gpsStatus = 'GPS अनुमति स्थायी रूप से अस्वीकृत');
+        return;
+      }
+
+      setState(() => _gpsStatus = 'GPS स्थान खोजा जा रहा है...');
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 5),
+      );
+      setState(() {
+        _currentPosition = position;
+        _gpsStatus = 'GPS स्थान: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
+      });
+    } catch (e) {
+      setState(() => _gpsStatus = 'GPS त्रुटि: ${e.toString()}');
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final pickedFile = await _picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1200,
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _imageFile = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('फोटो चुनने में त्रुटि: $e'), backgroundColor: AppTheme.errorColor),
+      );
     }
   }
 
@@ -102,6 +169,42 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     if (!mounted) return;
 
     if (newInspection != null) {
+      // Direct Photo Upload Logic
+      if (_imageFile != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                ),
+                SizedBox(width: 12),
+                Text('निरीक्षण सेव हो गया। फ़ोटो अपलोड हो रही है...'),
+              ],
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+        try {
+          await ApiService().uploadPhoto(
+            inspectionId: newInspection.id,
+            filePath: _imageFile!.path,
+            latitude: _currentPosition?.latitude ?? AppConstants.defaultLat,
+            longitude: _currentPosition?.longitude ?? AppConstants.defaultLng,
+            caption: _captionController.text.trim().isEmpty ? null : _captionController.text.trim(),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('फ़ोटो अपलोड विफल: $e'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('नया निरीक्षण सफलतापूर्वक बनाया गया!'),
@@ -117,7 +220,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('निरीक्षण बनाने में विफल: ${provider.error ?? "अज्ञात त्रुटि"}'),
+          content: Text('निरीक्षण बनाने में विफल: ${provider.error ?? "अज्ञान त्रुटि"}'),
           backgroundColor: AppTheme.errorColor,
         ),
       );
@@ -399,6 +502,117 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                 fillColor: Colors.grey[50],
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Photo Upload Card
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'निरीक्षण फ़ोटो (ऑप्शनल)',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _imageFile == null
+                                ? Container(
+                                    height: 150,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[50],
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.grey[300]!, width: 1),
+                                    ),
+                                    child: const Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.camera_alt_outlined, size: 40, color: Colors.grey),
+                                        SizedBox(height: 8),
+                                        Text('कोई फोटो चुनी नहीं गई है', style: TextStyle(color: Colors.grey)),
+                                      ],
+                                    ),
+                                  )
+                                : ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.file(_imageFile!, height: 180, fit: BoxFit.cover),
+                                  ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _pickImage(ImageSource.camera),
+                                    icon: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                                    label: const Text('कैमरा', style: TextStyle(color: Colors.white, fontSize: 13)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryColor,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _pickImage(ImageSource.gallery),
+                                    icon: const Icon(Icons.photo_library, color: Colors.white, size: 18),
+                                    label: const Text('गैलरी', style: TextStyle(color: Colors.white, fontSize: 13)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.secondaryColor,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_imageFile != null) ...[
+                              const SizedBox(height: 12),
+                              // GPS status row
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on, color: AppTheme.primaryColor, size: 16),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      _gpsStatus,
+                                      style: TextStyle(
+                                        color: _currentPosition != null ? AppTheme.successColor : Colors.orange,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.refresh, size: 16, color: AppTheme.primaryColor),
+                                    onPressed: _determinePosition,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              // Caption field
+                              TextFormField(
+                                controller: _captionController,
+                                decoration: InputDecoration(
+                                  labelText: 'फ़ोटो का शीर्षक / टिप्पणी (Caption)',
+                                  prefixIcon: const Icon(Icons.comment, color: AppTheme.primaryColor, size: 20),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                  filled: true,
+                                  fillColor: Colors.grey[50],
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                              ),
+                            ]
                           ],
                         ),
                       ),

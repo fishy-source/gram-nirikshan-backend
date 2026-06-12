@@ -233,11 +233,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
       _QuickAction('नया निरीक्षण', Icons.add_circle_rounded, AppTheme.primaryColor, '/inspections/new'),
-      _QuickAction('फ़ोटो अपलोड', Icons.camera_alt_rounded, AppTheme.secondaryColor, '/photos'),
-      _QuickAction('रिपोर्ट देखें', Icons.picture_as_pdf_rounded, AppTheme.errorColor, '/reports'),
+      _QuickAction('कैलेंडर', Icons.calendar_today_rounded, AppTheme.infoColor, '/calendar'),
       _QuickAction('AI सहायक', Icons.smart_toy_rounded, AppTheme.accentColor, '/ai-assistant'),
       _QuickAction('नक्शा', Icons.map_rounded, AppTheme.successColor, '/map'),
-      _QuickAction('कैलेंडर', Icons.calendar_today_rounded, AppTheme.infoColor, '/calendar'),
+      _QuickAction('रिपोर्ट देखें', Icons.picture_as_pdf_rounded, AppTheme.errorColor, '/reports'),
+      _QuickAction('फ़ोटो अपलोड', Icons.camera_alt_rounded, AppTheme.secondaryColor, '/photos'),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
