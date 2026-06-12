@@ -65,7 +65,7 @@ class Settings(BaseSettings):
 
     # Gemini AI
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.5-pro"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
     # Firebase (Push Notifications)
     FIREBASE_CREDENTIALS_PATH: Optional[str] = None
