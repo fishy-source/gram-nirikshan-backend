@@ -27,89 +27,97 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application startup/shutdown events."""
     logger.info("Starting Gram Nirikshan API...")
-    await create_tables()
-    logger.info("Database tables created/verified.")
+    app.state.startup_error = None
+    app.state.startup_traceback = None
+    try:
+        await create_tables()
+        logger.info("Database tables created/verified.")
 
-    # Ensure upload directories exist
-    for subdir in ["photos", "documents", "reports", "photos/thumbnails"]:
-        Path(settings.UPLOAD_DIR, subdir).mkdir(parents=True, exist_ok=True)
+        # Ensure upload directories exist
+        for subdir in ["photos", "documents", "reports", "photos/thumbnails"]:
+            Path(settings.UPLOAD_DIR, subdir).mkdir(parents=True, exist_ok=True)
 
-    # Seed default users and panchayats
-    from app.db.database import AsyncSessionLocal
-    from app.models.models import User, UserRole, Panchayat
-    from sqlalchemy import select
-    import uuid
+        # Seed default users and panchayats
+        from app.db.database import AsyncSessionLocal
+        from app.models.models import User, UserRole, Panchayat
+        from sqlalchemy import select
+        import uuid
 
-    async with AsyncSessionLocal() as session:
-        try:
-            # 1. Seed Rakesh Kumar (Admin)
-            res = await session.execute(select(User).where(User.mobile == "8433484673"))
-            user_rakesh = res.scalar_one_or_none()
-            if not user_rakesh:
-                rakesh = User(
-                    id=str(uuid.uuid4()),
-                    mobile="8433484673",
-                    name="Rakesh Kumar",
-                    name_hindi="राकेश कुमार",
-                    email="rakesh@example.com",
-                    role=UserRole.ADMIN,
-                    employee_id="ADMIN8433",
-                    designation="Super Admin",
-                    department="Gram Panchayat Department",
-                    district="Hathras",
-                    block="Hathras",
-                    is_active=True,
-                )
-                session.add(rakesh)
-                await session.commit()
-                logger.info("Default Admin User Rakesh Kumar (8433484673) registered successfully.")
-            else:
-                logger.info("User Rakesh Kumar (8433484673) already registered.")
+        async with AsyncSessionLocal() as session:
+            try:
+                # 1. Seed Rakesh Kumar (Admin)
+                res = await session.execute(select(User).where(User.mobile == "8433484673"))
+                user_rakesh = res.scalar_one_or_none()
+                if not user_rakesh:
+                    rakesh = User(
+                        id=str(uuid.uuid4()),
+                        mobile="8433484673",
+                        name="Rakesh Kumar",
+                        name_hindi="राकेश कुमार",
+                        email="rakesh@example.com",
+                        role=UserRole.ADMIN,
+                        employee_id="ADMIN8433",
+                        designation="Super Admin",
+                        department="Gram Panchayat Department",
+                        district="Hathras",
+                        block="Hathras",
+                        is_active=True,
+                    )
+                    session.add(rakesh)
+                    await session.commit()
+                    logger.info("Default Admin User Rakesh Kumar (8433484673) registered successfully.")
+                else:
+                    logger.info("User Rakesh Kumar (8433484673) already registered.")
 
-            # 2. Seed System Administrator (Admin)
-            res2 = await session.execute(select(User).where(User.mobile == "9999999999"))
-            user_test = res2.scalar_one_or_none()
-            if not user_test:
-                test_user = User(
-                    id=str(uuid.uuid4()),
-                    mobile="9999999999",
-                    name="System Administrator",
-                    name_hindi="सिस्टम प्रशासक",
-                    email="admin@gramnirikshan.in",
-                    role=UserRole.ADMIN,
-                    employee_id="ADMIN001",
-                    designation="System Admin",
-                    department="Gram Panchayat Department",
-                    district="Lucknow",
-                    block="Mohanlalganj",
-                    is_active=True,
-                )
-                session.add(test_user)
-                await session.commit()
-                logger.info("System Admin (9999999999) registered successfully.")
+                # 2. Seed System Administrator (Admin)
+                res2 = await session.execute(select(User).where(User.mobile == "9999999999"))
+                user_test = res2.scalar_one_or_none()
+                if not user_test:
+                    test_user = User(
+                        id=str(uuid.uuid4()),
+                        mobile="9999999999",
+                        name="System Administrator",
+                        name_hindi="सिस्टम प्रशासक",
+                        email="admin@gramnirikshan.in",
+                        role=UserRole.ADMIN,
+                        employee_id="ADMIN001",
+                        designation="System Admin",
+                        department="Gram Panchayat Department",
+                        district="Lucknow",
+                        block="Mohanlalganj",
+                        is_active=True,
+                    )
+                    session.add(test_user)
+                    await session.commit()
+                    logger.info("System Admin (9999999999) registered successfully.")
 
-            # 3. Seed Sample Panchayat
-            res_panchayat = await session.execute(select(Panchayat).where(Panchayat.code == "GP001"))
-            existing_panchayat = res_panchayat.scalar_one_or_none()
-            if not existing_panchayat:
-                panchayat = Panchayat(
-                    id=str(uuid.uuid4()),
-                    name="Rampur Gram Panchayat",
-                    name_hindi="रामपुर ग्राम पंचायत",
-                    code="GP001",
-                    district="Lucknow",
-                    block="Mohanlalganj",
-                    village="Rampur",
-                    latitude=26.8467,
-                    longitude=80.9462,
-                    is_active=True
-                )
-                session.add(panchayat)
-                await session.commit()
-                logger.info("Sample Panchayat GP001 registered successfully.")
+                # 3. Seed Sample Panchayat
+                res_panchayat = await session.execute(select(Panchayat).where(Panchayat.code == "GP001"))
+                existing_panchayat = res_panchayat.scalar_one_or_none()
+                if not existing_panchayat:
+                    panchayat = Panchayat(
+                        id=str(uuid.uuid4()),
+                        name="Rampur Gram Panchayat",
+                        name_hindi="रामपुर ग्राम पंचायत",
+                        code="GP001",
+                        district="Lucknow",
+                        block="Mohanlalganj",
+                        village="Rampur",
+                        latitude=26.8467,
+                        longitude=80.9462,
+                        is_active=True
+                    )
+                    session.add(panchayat)
+                    await session.commit()
+                    logger.info("Sample Panchayat GP001 registered successfully.")
 
-        except Exception as e:
-            logger.error(f"Error seeding database: {e}")
+            except Exception as e:
+                logger.error(f"Error seeding database: {e}")
+    except Exception as err:
+        import traceback
+        logger.error(f"Error during lifespan startup: {err}")
+        app.state.startup_error = str(err)
+        app.state.startup_traceback = traceback.format_exc()
 
     yield
     logger.info("Shutting down Gram Nirikshan API.")
@@ -189,6 +197,8 @@ async def debug_endpoint(seed: bool = False):
     import uuid
 
     info = {}
+    info["startup_error"] = getattr(app.state, "startup_error", None)
+    info["startup_traceback"] = getattr(app.state, "startup_traceback", None)
     info["env"] = {
         "DB_HOST": os.getenv("DB_HOST") or os.getenv("MYSQLHOST"),
         "DB_PORT": os.getenv("DB_PORT") or os.getenv("MYSQLPORT"),
