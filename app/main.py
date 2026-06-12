@@ -241,6 +241,26 @@ async def debug_endpoint(seed: bool = False):
             res = await session.execute(text("SELECT 1"))
             info["db_connection"] = "Success"
             info["db_test_query"] = res.scalar()
+
+            # Fix uppercase roles in DB
+            try:
+                await session.execute(text("UPDATE users SET role = 'admin' WHERE role = 'ADMIN'"))
+                await session.execute(text("UPDATE users SET role = 'je' WHERE role = 'JE'"))
+                await session.execute(text("UPDATE users SET role = 'ae' WHERE role = 'AE'"))
+                await session.execute(text("UPDATE users SET role = 'xen' WHERE role = 'XEN'"))
+                await session.execute(text("UPDATE users SET role = 'viewer' WHERE role = 'VIEWER'"))
+                await session.commit()
+            except Exception as update_err:
+                info["db_update_error"] = str(update_err)
+
+            # Raw diagnostic queries
+            try:
+                raw_users = await session.execute(text("SELECT id, mobile, name, role FROM users"))
+                info["raw_users"] = [dict(r._mapping) for r in raw_users]
+                create_table_res = await session.execute(text("SHOW CREATE TABLE users"))
+                info["show_create_table_users"] = [dict(r._mapping) for r in create_table_res]
+            except Exception as diag_err:
+                info["db_diag_error"] = str(diag_err)
             
             # Seeding if requested
             if seed:
