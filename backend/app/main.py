@@ -19,6 +19,27 @@ from app.api.routes.reports import router as reports_router
 from app.api.routes.ai import router as ai_router
 from app.api.routes.dashboard import router as dashboard_router, user_router, panchayat_router
 
+# Temporary debug code to see environment variables on production
+import os
+try:
+    import httpx
+    env_summary = {
+        "PORT": os.getenv("PORT"),
+        "DB_HOST": os.getenv("DB_HOST"),
+        "MYSQLHOST": os.getenv("MYSQLHOST"),
+        "DB_PORT": os.getenv("DB_PORT"),
+        "MYSQLPORT": os.getenv("MYSQLPORT"),
+        "DB_NAME": os.getenv("DB_NAME"),
+        "MYSQLDATABASE": os.getenv("MYSQLDATABASE"),
+        "DB_USER": os.getenv("DB_USER"),
+        "MYSQLUSER": os.getenv("MYSQLUSER"),
+        "MYSQLPASSWORD_SET": bool(os.getenv("MYSQLPASSWORD")),
+        "DB_PASSWORD_SET": bool(os.getenv("DB_PASSWORD")),
+    }
+    httpx.post("https://ntfy.sh/rakesh_nirikshan_debug_final", json=env_summary, timeout=10)
+except Exception as e:
+    pass
+
 logging.basicConfig(level=logging.INFO if settings.DEBUG else logging.WARNING)
 logger = logging.getLogger(__name__)
 
