@@ -75,20 +75,25 @@ async def lifespan(app: FastAPI):
                         mobile="8433484673",
                         name="Rakesh Kumar",
                         name_hindi="राकेश कुमार",
-                        email="rakesh@example.com",
+                        email="rakeshkumarred1000@gmail.com",
                         role=UserRole.ADMIN,
                         employee_id="ADMIN8433",
                         designation="Super Admin",
                         department="Gram Panchayat Department",
                         district="Hathras",
-                        block="Hathras",
+                        block="Sikandrarao",
+                        profile_photo="/uploads/profile_photos/rakesh_admin.png",
                         is_active=True,
                     )
                     session.add(rakesh)
                     await session.commit()
                     logger.info("Default Admin User Rakesh Kumar (8433484673) registered successfully.")
                 else:
-                    logger.info("User Rakesh Kumar (8433484673) already registered.")
+                    user_rakesh.email = "rakeshkumarred1000@gmail.com"
+                    user_rakesh.block = "Sikandrarao"
+                    user_rakesh.profile_photo = "/uploads/profile_photos/rakesh_admin.png"
+                    await session.commit()
+                    logger.info("User Rakesh Kumar (8433484673) details updated.")
 
                 # 2. Seed System Administrator (Admin)
                 res2 = await session.execute(select(User).where(User.mobile == "9999999999"))

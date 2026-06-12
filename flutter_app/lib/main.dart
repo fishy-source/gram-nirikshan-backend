@@ -232,11 +232,21 @@ class _ProfileScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('प्रोफ़ाइल')),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        Center(child: CircleAvatar(
-          radius: 50, backgroundColor: AppTheme.primaryColor,
-          child: Text(user?.name.substring(0, 1).toUpperCase() ?? 'U',
-              style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold)),
-        )),
+        Center(
+          child: CircleAvatar(
+            radius: 50,
+            backgroundColor: AppTheme.primaryColor,
+            backgroundImage: (user?.profilePhoto != null && user!.profilePhoto!.isNotEmpty)
+                ? NetworkImage('${AppConstants.baseUrl.replaceAll('/api/v1', '')}${user.profilePhoto}')
+                : null,
+            child: (user?.profilePhoto == null || user!.profilePhoto!.isEmpty)
+                ? Text(
+                    user?.name.substring(0, 1).toUpperCase() ?? 'U',
+                    style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold),
+                  )
+                : null,
+          ),
+        ),
         const SizedBox(height: 16),
         Center(child: Text(user?.name ?? '', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.primaryColor))),
         Center(child: Text(user?.designation ?? user?.role.toUpperCase() ?? '', style: const TextStyle(color: Colors.grey))),
