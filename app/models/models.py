@@ -16,8 +16,34 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
-def SqlEnum(enum_class):
-    return Enum(enum_class, values_callable=lambda obj: [e.value for e in obj])
+from sqlalchemy import TypeDecorator
+
+class SqlEnum(TypeDecorator):
+    cache_ok = True
+
+    def __init__(self, enum_class, *args, **kwargs):
+        kwargs["values_callable"] = lambda obj: [e.name.upper() for e in obj]
+        self.impl = Enum(enum_class, *args, **kwargs)
+        super().__init__(*args, **kwargs)
+        self.enum_class = enum_class
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, self.enum_class):
+            return value.name.upper()
+        return str(value).upper()
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        try:
+            return self.enum_class[value.upper()]
+        except KeyError:
+            for member in self.enum_class:
+                if member.value.lower() == value.lower():
+                    return member
+            return None
 
 
 
