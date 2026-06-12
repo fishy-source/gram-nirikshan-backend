@@ -15,6 +15,10 @@ import 'presentation/screens/inspections/inspection_list_screen.dart';
 import 'presentation/screens/inspections/inspection_detail_screen.dart';
 import 'presentation/screens/inspections/new_inspection_screen.dart';
 import 'presentation/screens/ai_assistant/ai_assistant_screen.dart';
+import 'presentation/screens/photos/photo_upload_screen.dart';
+import 'presentation/screens/reports/reports_screen.dart';
+import 'presentation/screens/map/map_screen.dart';
+import 'presentation/screens/calendar/calendar_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,6 +82,10 @@ class _GramNirikshanAppState extends State<GramNirikshanApp> {
         '/inspections': (_) => const InspectionListScreen(),
         '/inspections/new': (_) => const NewInspectionScreen(),
         '/ai-assistant': (_) => const AIAssistantScreen(),
+        '/photos': (_) => const PhotoUploadScreen(),
+        '/reports': (_) => const ReportsScreen(),
+        '/map': (_) => const MapScreen(),
+        '/calendar': (_) => const CalendarScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspections/detail') {
