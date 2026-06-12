@@ -1,0 +1,24 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment - IMPORTANT: passwords hain isme!
+.env
+
+# Uploads (user files)
+uploads/
+
+# Testing
+.pytest_cache/
+tests/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

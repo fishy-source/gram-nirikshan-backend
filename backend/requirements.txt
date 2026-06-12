@@ -1,0 +1,20 @@
+# Gram Nirikshan Backend Dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy==2.0.23
+aiomysql==0.2.0
+pydantic==2.5.0
+pydantic-core==2.14.5
+pydantic-settings==2.1.0
+pydantic[email]
+PyJWT==2.8.0
+bcrypt==4.1.1
+python-multipart==0.0.6
+httpx==0.25.2
+Pillow==10.1.0
+reportlab==4.0.7
+google-generativeai==0.3.2
+python-dotenv==1.0.0
+aiofiles==23.2.1
+alembic==1.12.1
+email-validator==2.1.0
