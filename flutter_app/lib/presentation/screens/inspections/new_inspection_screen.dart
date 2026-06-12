@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/api_service.dart';
@@ -36,6 +37,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
   File? _imageFile;
   Position? _currentPosition;
   String _gpsStatus = 'GPS स्थान प्राप्त नहीं हुआ';
+  GoogleMapController? _mapController;
 
   @override
   void initState() {
@@ -59,6 +61,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     _descriptionController.dispose();
     _panchayatNameController.dispose();
     _captionController.dispose();
+    _mapController?.dispose();
     super.dispose();
   }
 
@@ -75,6 +78,37 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
         _selectedDate = picked;
       });
     }
+  }
+
+  void _updateMapCamera() {
+    if (_mapController != null && _currentPosition != null) {
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          16.0,
+        ),
+      );
+    }
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
+    _updateMapCamera();
+  }
+
+  Set<Marker> _buildMapMarkers() {
+    final markers = <Marker>{};
+    if (_currentPosition != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('current_photo_loc'),
+          position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          infoWindow: const InfoWindow(title: 'निरीक्षण/फ़ोटो स्थान'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan),
+        ),
+      );
+    }
+    return markers;
   }
 
   Future<void> _determinePosition() async {
@@ -108,6 +142,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
         _currentPosition = position;
         _gpsStatus = 'GPS स्थान: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
       });
+      _updateMapCamera();
     } catch (e) {
       setState(() => _gpsStatus = 'GPS त्रुटि: ${e.toString()}');
     }
@@ -124,6 +159,8 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
         setState(() {
           _imageFile = File(pickedFile.path);
         });
+        // Auto-fetch fresh GPS coordinates when photo is taken/picked
+        _determinePosition();
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -578,28 +615,6 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                             ),
                             if (_imageFile != null) ...[
                               const SizedBox(height: 12),
-                              // GPS status row
-                              Row(
-                                children: [
-                                  const Icon(Icons.location_on, color: AppTheme.primaryColor, size: 16),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      _gpsStatus,
-                                      style: TextStyle(
-                                        color: _currentPosition != null ? AppTheme.successColor : Colors.orange,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.refresh, size: 16, color: AppTheme.primaryColor),
-                                    onPressed: _determinePosition,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
                               // Caption field
                               TextFormField(
                                 controller: _captionController,
@@ -613,6 +628,75 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                 ),
                               ),
                             ]
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Google Map Card showing current location
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'निरीक्षण स्थान (नक्शा)',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              height: 180,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey[300]!, width: 1),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: GoogleMap(
+                                  onMapCreated: _onMapCreated,
+                                  initialCameraPosition: CameraPosition(
+                                    target: _currentPosition != null
+                                        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+                                        : const LatLng(AppConstants.defaultLat, AppConstants.defaultLng),
+                                    zoom: _currentPosition != null ? 16.0 : 8.0,
+                                  ),
+                                  markers: _buildMapMarkers(),
+                                  myLocationEnabled: true,
+                                  myLocationButtonEnabled: false,
+                                  zoomControlsEnabled: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on, color: AppTheme.primaryColor, size: 16),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    _gpsStatus,
+                                    style: TextStyle(
+                                      color: _currentPosition != null ? AppTheme.successColor : Colors.orange,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.refresh, size: 16, color: AppTheme.primaryColor),
+                                  onPressed: _determinePosition,
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
