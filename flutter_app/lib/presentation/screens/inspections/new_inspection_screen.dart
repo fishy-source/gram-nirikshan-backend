@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../providers/inspection_provider.dart';
+import '../../providers/auth_provider.dart';
 
 class NewInspectionScreen extends StatefulWidget {
   const NewInspectionScreen({super.key});
@@ -126,6 +127,8 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InspectionProvider>();
+    final authProvider = context.watch<AuthProvider>();
+    final user = authProvider.currentUser;
     final panchayats = provider.panchayats;
 
     return Scaffold(
@@ -160,6 +163,51 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primaryColor,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Junior Engineer Name
+                            TextFormField(
+                              initialValue: user?.nameHindi ?? user?.name ?? 'N/A',
+                              enabled: false,
+                              style: const TextStyle(color: Colors.black87),
+                              decoration: InputDecoration(
+                                labelText: 'अवर अभियंता का नाम (Junior Engineer)',
+                                prefixIcon: const Icon(Icons.person, color: Colors.grey),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                filled: true,
+                                fillColor: Colors.grey[100],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // District Name
+                            TextFormField(
+                              initialValue: user?.district ?? 'N/A',
+                              enabled: false,
+                              style: const TextStyle(color: Colors.black87),
+                              decoration: InputDecoration(
+                                labelText: 'जनपद का नाम (District)',
+                                prefixIcon: const Icon(Icons.map, color: Colors.grey),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                filled: true,
+                                fillColor: Colors.grey[100],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Block Name
+                            TextFormField(
+                              initialValue: user?.block ?? 'N/A',
+                              enabled: false,
+                              style: const TextStyle(color: Colors.black87),
+                              decoration: InputDecoration(
+                                labelText: 'ब्लॉक का नाम (Block)',
+                                prefixIcon: const Icon(Icons.location_on, color: Colors.grey),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                filled: true,
+                                fillColor: Colors.grey[100],
                               ),
                             ),
                             const SizedBox(height: 16),
