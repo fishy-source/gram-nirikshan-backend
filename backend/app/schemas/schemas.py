@@ -61,11 +61,31 @@ class VerifyOTPRequest(BaseModel):
         return v
 
 
+class UserResponse(BaseModel):
+    id: str
+    mobile: str
+    name: str
+    name_hindi: Optional[str] = None
+    email: Optional[str] = None
+    role: UserRole
+    employee_id: Optional[str] = None
+    designation: Optional[str] = None
+    department: Optional[str] = None
+    district: Optional[str] = None
+    block: Optional[str] = None
+    profile_photo: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "Bearer"
-    user: "UserResponse"
+    user: UserResponse
 
 
 class RefreshTokenRequest(BaseModel):
@@ -97,26 +117,6 @@ class UserUpdate(BaseModel):
     block: Optional[str] = None
     firebase_token: Optional[str] = None
     is_active: Optional[bool] = None
-
-
-class UserResponse(BaseModel):
-    id: str
-    mobile: str
-    name: str
-    name_hindi: Optional[str] = None
-    email: Optional[str] = None
-    role: UserRole
-    employee_id: Optional[str] = None
-    designation: Optional[str] = None
-    department: Optional[str] = None
-    district: Optional[str] = None
-    block: Optional[str] = None
-    profile_photo: Optional[str] = None
-    is_active: bool
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 # ─── Panchayat Schemas ─────────────────────────────────────────────────────────
