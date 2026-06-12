@@ -244,6 +244,42 @@ async def generate_report(
     file_name = f"Report_{inspection.inspection_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     output_path = str(REPORTS_DIR / file_name)
 
+    # Check if AI report draft is missing, generate it dynamically using Gemini
+    if not inspection.ai_report_draft:
+        try:
+            from app.api.routes.ai import call_gemini
+            
+            prompt = f"""Generate a professional, structured inspection report draft for the following inspection:
+            
+Inspection ID: {inspection.inspection_id}
+Title: {inspection.title}
+Gram Panchayat: {panchayat.name if panchayat else 'N/A'} (District: {panchayat.district if panchayat else 'N/A'}, Block: {panchayat.block if panchayat else 'N/A'})
+Inspecting Officer: {engineer.name if engineer else 'N/A'} (Designation: {engineer.designation or 'N/A'})
+Project Work Name: {inspection.project_name or 'N/A'} (Code: {inspection.project_code or 'N/A'})
+Inspection Type: {inspection.inspection_type or 'General'}
+
+Observations / Deficiencies Found (कमी):
+{inspection.observations or 'No specific observations recorded.'}
+
+Recommendations / Disposal Steps (उपाय):
+{inspection.recommendations or 'No specific recommendations recorded.'}
+
+Please write:
+1. Executive Summary
+2. Deficiencies and Issues Found (detail what needs attention)
+3. Action Plan & Recommendations (detail disposal solutions and steps)
+4. Conclusion
+
+Format the response professionally in clean English so that it can be compiled into a PDF document."""
+            
+            ai_draft = await call_gemini(prompt, language="en")
+            if ai_draft and not ai_draft.startswith("AI Error:"):
+                inspection.ai_report_draft = ai_draft
+                await db.flush()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to auto-generate Gemini report draft: {e}")
+
     try:
         build_pdf_report(inspection, panchayat, engineer, list(photos), list(approvals), output_path)
     except Exception as e:

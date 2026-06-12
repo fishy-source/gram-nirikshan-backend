@@ -146,12 +146,59 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  Future<void> _shareReportLink(String inspectionId) async {
+  Future<void> _shareReportFile(String inspectionId, String title) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
+            SizedBox(width: 12),
+            Text('रिपोर्ट तैयार करके शेयर की जा रही है...'),
+          ],
+        ),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
     try {
       final downloadUrl = await ApiService().getReportDownloadUrl(inspectionId);
-      await Share.share(
-        'ग्राम निरीक्षण रिपोर्ट देखने के लिए इस लिंक पर जाएं:\n$downloadUrl',
-        subject: 'ग्राम निरीक्षण रिपोर्ट',
+      final dir = await getTemporaryDirectory();
+      final savePath = '${dir.path}/Report_$inspectionId.pdf';
+
+      // Download file using Dio
+      final dio = Dio();
+      final flutterSecureStorage = const FlutterSecureStorage();
+      final tokenValue = await flutterSecureStorage.read(key: AppConstants.accessTokenKey);
+
+      try {
+        await dio.download(
+          downloadUrl,
+          savePath,
+          options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
+        );
+      } on DioException catch (de) {
+        if (de.response?.statusCode == 404) {
+          // Report not found, auto-generate first!
+          await ApiService().generateReport(inspectionId);
+          // Retry downloading after successful generation
+          await dio.download(
+            downloadUrl,
+            savePath,
+            options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
+          );
+        } else {
+          rethrow;
+        }
+      }
+
+      // Share the downloaded actual PDF file
+      await Share.shareXFiles(
+        [XFile(savePath)],
+        text: 'ग्राम निरीक्षण रिपोर्ट: $title',
       );
     } catch (e) {
       if (mounted) {
@@ -281,11 +328,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                       onPressed: () => _downloadAndViewReport(ins.id, ins.title),
                                     ),
 
-                                    // Button to share link
+                                    // Button to share PDF file
                                     IconButton(
                                       icon: const Icon(Icons.share, color: AppTheme.secondaryColor),
                                       tooltip: 'शेयर करें',
-                                      onPressed: () => _shareReportLink(ins.id),
+                                      onPressed: () => _shareReportFile(ins.id, ins.title),
                                     ),
                                   ],
                                 ),
