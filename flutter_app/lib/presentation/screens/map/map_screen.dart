@@ -72,6 +72,28 @@ class _MapScreenState extends State<MapScreen> {
           ),
         );
       }
+
+      // Add markers for photos with coordinates
+      for (final photo in ins.photos) {
+        if (photo.latitude != null && photo.longitude != null) {
+          markers.add(
+            Marker(
+              markerId: MarkerId('photo_${photo.id}'),
+              position: LatLng(photo.latitude!, photo.longitude!),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan),
+              infoWindow: InfoWindow(
+                title: 'फ़ोटो: ${photo.caption ?? "निरीक्षण फ़ोटो"}',
+                snippet: 'निरीक्षण: ${ins.inspectionId}',
+              ),
+              onTap: () {
+                setState(() {
+                  _selectedInspection = ins;
+                });
+              },
+            ),
+          );
+        }
+      }
     }
 
     setState(() {
