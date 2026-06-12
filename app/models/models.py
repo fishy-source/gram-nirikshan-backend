@@ -16,16 +16,18 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
-from sqlalchemy import TypeDecorator
+from sqlalchemy import TypeDecorator, String
 
 class SqlEnum(TypeDecorator):
+    impl = String
     cache_ok = True
 
     def __init__(self, enum_class, *args, **kwargs):
-        kwargs["values_callable"] = lambda obj: [e.name.upper() for e in obj]
-        self.impl = Enum(enum_class, *args, **kwargs)
         super().__init__(*args, **kwargs)
         self.enum_class = enum_class
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(String(50))
 
     def process_bind_param(self, value, dialect):
         if value is None:
