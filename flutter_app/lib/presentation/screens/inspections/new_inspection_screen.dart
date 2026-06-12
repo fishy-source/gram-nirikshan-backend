@@ -212,6 +212,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                   )
                                 : DropdownButtonFormField<String>(
                                     value: _selectedPanchayatId,
+                                    isExpanded: true,
                                     decoration: InputDecoration(
                                       labelText: 'ग्राम पंचायत चुनें *',
                                       prefixIcon: const Icon(Icons.location_city, color: AppTheme.primaryColor),
@@ -223,7 +224,10 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                     items: panchayats.map((p) {
                                       return DropdownMenuItem<String>(
                                         value: p.id,
-                                        child: Text(p.nameHindi ?? p.name),
+                                        child: Text(
+                                          p.nameHindi ?? p.name,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       );
                                     }).toList(),
                                     onChanged: (val) {
@@ -243,6 +247,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                             // Inspection Type Dropdown
                             DropdownButtonFormField<String>(
                               value: _selectedType,
+                              isExpanded: true,
                               decoration: InputDecoration(
                                 labelText: 'निरीक्षण का प्रकार',
                                 prefixIcon: const Icon(Icons.category, color: AppTheme.primaryColor),
@@ -253,7 +258,10 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                               items: AppConstants.inspectionTypes.map((type) {
                                 return DropdownMenuItem<String>(
                                   value: type,
-                                  child: Text(type),
+                                  child: Text(
+                                    type,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 );
                               }).toList(),
                               onChanged: (val) {

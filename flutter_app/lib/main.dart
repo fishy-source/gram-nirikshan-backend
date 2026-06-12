@@ -13,6 +13,7 @@ import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/dashboard/dashboard_screen.dart';
 import 'presentation/screens/inspections/inspection_list_screen.dart';
 import 'presentation/screens/inspections/inspection_detail_screen.dart';
+import 'presentation/screens/inspections/new_inspection_screen.dart';
 import 'presentation/screens/ai_assistant/ai_assistant_screen.dart';
 
 void main() async {
@@ -75,6 +76,7 @@ class _GramNirikshanAppState extends State<GramNirikshanApp> {
         '/login': (_) => const LoginScreen(),
         '/home': (_) => const HomeScreen(),
         '/inspections': (_) => const InspectionListScreen(),
+        '/inspections/new': (_) => const NewInspectionScreen(),
         '/ai-assistant': (_) => const AIAssistantScreen(),
       },
       onGenerateRoute: (settings) {

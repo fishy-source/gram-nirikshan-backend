@@ -109,7 +109,11 @@ class InspectionModel {
   final double? checkinLatitude;
   final double? checkinLongitude;
   final DateTime? checkinTime;
+  final String? checkinAddress;
+  final double? checkoutLatitude;
+  final double? checkoutLongitude;
   final DateTime? checkoutTime;
+  final String? checkoutAddress;
   final double? distanceCoveredKm;
   final String? observations;
   final String? recommendations;
@@ -126,7 +130,8 @@ class InspectionModel {
     required this.id, required this.inspectionId, required this.panchayatId,
     required this.engineerId, required this.status, required this.title,
     this.description, this.inspectionType, this.projectName, this.projectCode,
-    this.checkinLatitude, this.checkinLongitude, this.checkinTime, this.checkoutTime,
+    this.checkinLatitude, this.checkinLongitude, this.checkinTime, this.checkinAddress,
+    this.checkoutLatitude, this.checkoutLongitude, this.checkoutTime, this.checkoutAddress,
     this.distanceCoveredKm, this.observations, this.recommendations, this.actionTaken,
     this.inspectionDate, this.submittedAt, this.approvedAt, required this.createdAt,
     this.panchayat, this.engineer, this.photos = const [],
@@ -141,7 +146,11 @@ class InspectionModel {
         checkinLatitude: (json['checkin_latitude'] as num?)?.toDouble(),
         checkinLongitude: (json['checkin_longitude'] as num?)?.toDouble(),
         checkinTime: json['checkin_time'] != null ? DateTime.parse(json['checkin_time']) : null,
+        checkinAddress: json['checkin_address'],
+        checkoutLatitude: (json['checkout_latitude'] as num?)?.toDouble(),
+        checkoutLongitude: (json['checkout_longitude'] as num?)?.toDouble(),
         checkoutTime: json['checkout_time'] != null ? DateTime.parse(json['checkout_time']) : null,
+        checkoutAddress: json['checkout_address'],
         distanceCoveredKm: (json['distance_covered_km'] as num?)?.toDouble(),
         observations: json['observations'], recommendations: json['recommendations'],
         actionTaken: json['action_taken'],

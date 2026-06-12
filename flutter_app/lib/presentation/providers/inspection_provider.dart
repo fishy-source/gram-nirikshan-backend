@@ -2,7 +2,7 @@
 
 import 'package:flutter/foundation.dart';
 import '../../../core/services/api_service.dart';
-import '../../models/models.dart';
+import '../../data/models/models.dart';
 
 class InspectionProvider with ChangeNotifier {
   final _api = ApiService();
