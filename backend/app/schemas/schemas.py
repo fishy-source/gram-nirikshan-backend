@@ -172,7 +172,8 @@ class PanchayatResponse(BaseModel):
 # ─── Inspection Schemas ────────────────────────────────────────────────────────
 
 class InspectionCreate(BaseModel):
-    panchayat_id: str
+    panchayat_id: Optional[str] = None
+    new_panchayat_name: Optional[str] = None
     title: str
     description: Optional[str] = None
     inspection_type: Optional[str] = None

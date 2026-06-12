@@ -4,6 +4,7 @@ Inspection routes: CRUD, GPS check-in/out, status workflow, auto-ID generation.
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
+from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 import math
 from typing import Optional, List
@@ -57,7 +58,11 @@ async def list_inspections(
     current_user: User = Depends(get_current_user),
 ):
     """List inspections. Engineers see only their own; admins/approvers see all."""
-    query = select(Inspection)
+    query = select(Inspection).options(
+        selectinload(Inspection.panchayat),
+        selectinload(Inspection.engineer),
+        selectinload(Inspection.photos)
+    )
 
     # Role-based filtering
     if current_user.role.value == "je":
@@ -85,21 +90,71 @@ async def create_inspection(
     current_user: User = Depends(require_engineer()),
 ):
     """Create a new inspection (Draft status)."""
+    panchayat_id = data.panchayat_id
+
+    # If new_panchayat_name is provided, create a new Panchayat on-the-fly
+    if data.new_panchayat_name and data.new_panchayat_name.strip():
+        name = data.new_panchayat_name.strip()
+        # Check if a panchayat with this name already exists in user's district/block to avoid duplicate
+        existing_res = await db.execute(
+            select(Panchayat).where(
+                Panchayat.name == name,
+                Panchayat.district == (current_user.district or "Hathras"),
+                Panchayat.block == (current_user.block or "Hathras")
+            )
+        )
+        existing_p = existing_res.scalar_one_or_none()
+        if existing_p:
+            panchayat_id = existing_p.id
+        else:
+            import uuid
+            new_p = Panchayat(
+                id=str(uuid.uuid4()),
+                name=name,
+                name_hindi=name,
+                code=f"GP-{str(uuid.uuid4())[:8].upper()}",
+                district=current_user.district or "Hathras",
+                block=current_user.block or "Hathras",
+                is_active=True
+            )
+            db.add(new_p)
+            await db.flush()
+            panchayat_id = new_p.id
+
+    if not panchayat_id:
+        raise HTTPException(status_code=400, detail="Panchayat ID or New Panchayat Name is required")
+
     # Validate panchayat exists
-    result = await db.execute(select(Panchayat).where(Panchayat.id == data.panchayat_id))
+    result = await db.execute(select(Panchayat).where(Panchayat.id == panchayat_id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Panchayat not found")
 
     inspection_id = await generate_inspection_id(db)
+    
+    dump_data = data.model_dump()
+    dump_data.pop("new_panchayat_name", None)
+    dump_data["panchayat_id"] = panchayat_id
+
     inspection = Inspection(
         inspection_id=inspection_id,
         engineer_id=current_user.id,
-        **data.model_dump(),
+        **dump_data,
     )
     db.add(inspection)
     await db.flush()
-    await db.refresh(inspection)
-    return InspectionResponse.model_validate(inspection)
+    
+    # Eagerly load relationships to avoid greenlet lazy load errors in response validation
+    result = await db.execute(
+        select(Inspection)
+        .where(Inspection.id == inspection.id)
+        .options(
+            selectinload(Inspection.panchayat),
+            selectinload(Inspection.engineer),
+            selectinload(Inspection.photos)
+        )
+    )
+    db_inspection = result.scalar_one()
+    return db_inspection
 
 
 @router.get("/{inspection_id}", response_model=InspectionResponse)
@@ -109,11 +164,19 @@ async def get_inspection(
     current_user: User = Depends(get_current_user),
 ):
     """Get inspection details by ID."""
-    result = await db.execute(select(Inspection).where(Inspection.id == inspection_id))
+    result = await db.execute(
+        select(Inspection)
+        .where(Inspection.id == inspection_id)
+        .options(
+            selectinload(Inspection.panchayat),
+            selectinload(Inspection.engineer),
+            selectinload(Inspection.photos)
+        )
+    )
     inspection = result.scalar_one_or_none()
     if not inspection:
         raise HTTPException(status_code=404, detail="Inspection not found")
-    return InspectionResponse.model_validate(inspection)
+    return inspection
 
 
 @router.put("/{inspection_id}", response_model=InspectionResponse)
@@ -139,8 +202,18 @@ async def update_inspection(
         setattr(inspection, field, value)
 
     await db.flush()
-    await db.refresh(inspection)
-    return InspectionResponse.model_validate(inspection)
+    
+    # Query fully loaded inspection
+    res = await db.execute(
+        select(Inspection)
+        .where(Inspection.id == inspection.id)
+        .options(
+            selectinload(Inspection.panchayat),
+            selectinload(Inspection.engineer),
+            selectinload(Inspection.photos)
+        )
+    )
+    return res.scalar_one()
 
 
 @router.post("/{inspection_id}/submit", response_model=MessageResponse)
