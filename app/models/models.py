@@ -16,6 +16,11 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
+def SqlEnum(enum_class):
+    return Enum(enum_class, values_callable=lambda obj: [e.value for e in obj])
+
+
+
 # ─── Enums ─────────────────────────────────────────────────────────────────────
 
 class UserRole(str, enum.Enum):
@@ -67,7 +72,7 @@ class User(Base):
     name = Column(String(100), nullable=False)
     name_hindi = Column(String(200), nullable=True)
     email = Column(String(100), unique=True, nullable=True)
-    role = Column(Enum(UserRole), nullable=False, default=UserRole.JE)
+    role = Column(SqlEnum(UserRole), nullable=False, default=UserRole.JE)
     employee_id = Column(String(50), unique=True, nullable=True)
     designation = Column(String(100), nullable=True)
     department = Column(String(100), nullable=True)
@@ -132,7 +137,7 @@ class Inspection(Base):
     inspection_id = Column(String(30), unique=True, nullable=False)  # Auto-generated
     panchayat_id = Column(String(36), ForeignKey("panchayats.id"), nullable=False)
     engineer_id = Column(String(36), ForeignKey("users.id"), nullable=False)
-    status = Column(Enum(InspectionStatus), default=InspectionStatus.DRAFT, index=True)
+    status = Column(SqlEnum(InspectionStatus), default=InspectionStatus.DRAFT, index=True)
 
     # Inspection Details
     title = Column(String(300), nullable=False)
@@ -213,7 +218,7 @@ class Document(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     inspection_id = Column(String(36), ForeignKey("inspections.id"), nullable=True)
     uploaded_by = Column(String(36), ForeignKey("users.id"), nullable=False)
-    document_type = Column(Enum(DocumentType), nullable=False)
+    document_type = Column(SqlEnum(DocumentType), nullable=False)
     file_path = Column(String(500), nullable=False)
     original_filename = Column(String(255), nullable=False)
     file_size_kb = Column(Integer, nullable=True)
@@ -252,7 +257,7 @@ class Approval(Base):
     inspection_id = Column(String(36), ForeignKey("inspections.id"), nullable=False)
     approver_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     level = Column(String(10), nullable=False)  # JE, AE, XEN
-    action = Column(Enum(ApprovalAction), default=ApprovalAction.PENDING)
+    action = Column(SqlEnum(ApprovalAction), default=ApprovalAction.PENDING)
     remarks = Column(Text, nullable=True)
     forward_to = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -272,7 +277,7 @@ class Notification(Base):
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     title = Column(String(200), nullable=False)
     body = Column(Text, nullable=True)
-    notification_type = Column(Enum(NotificationType), nullable=False)
+    notification_type = Column(SqlEnum(NotificationType), nullable=False)
     reference_id = Column(String(36), nullable=True)  # inspection_id or other
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

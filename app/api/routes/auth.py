@@ -48,41 +48,54 @@ async def send_otp(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """Send OTP to mobile number."""
-    mobile = request.mobile
+    try:
+        """Send OTP to mobile number."""
+        mobile = request.mobile
 
-    # Check if user exists
-    result = await db.execute(select(User).where(User.mobile == mobile))
-    user = result.scalar_one_or_none()
+        # Check if user exists
+        result = await db.execute(select(User).where(User.mobile == mobile))
+        user = result.scalar_one_or_none()
 
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Mobile number not registered. Contact admin.",
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Mobile number not registered. Contact admin.",
+            )
+
+        if not user.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled.")
+
+        # Invalidate old OTPs
+        old_otps = await db.execute(
+            select(OTPRecord).where(OTPRecord.mobile == mobile, OTPRecord.is_used == False)
         )
+        for old_otp in old_otps.scalars():
+            old_otp.is_used = True
 
-    if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled.")
+        # Generate new OTP (Static OTP '123456' for Rakesh and Test Admin, dynamic for others)
+        if mobile in ["8433484673", "9999999999"]:
+            otp = "123456"
+        else:
+            otp = generate_otp(settings.OTP_LENGTH)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
 
-    # Invalidate old OTPs
-    old_otps = await db.execute(
-        select(OTPRecord).where(OTPRecord.mobile == mobile, OTPRecord.is_used == False)
-    )
-    for old_otp in old_otps.scalars():
-        old_otp.is_used = True
+        otp_record = OTPRecord(mobile=mobile, otp=otp, expires_at=expires_at)
+        db.add(otp_record)
+        await db.flush()
 
-    # Generate new OTP
-    otp = generate_otp(settings.OTP_LENGTH)
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
+        # Send OTP asynchronously
+        background_tasks.add_task(send_sms_otp, mobile, otp)
 
-    otp_record = OTPRecord(mobile=mobile, otp=otp, expires_at=expires_at)
-    db.add(otp_record)
-    await db.flush()
-
-    # Send OTP asynchronously
-    background_tasks.add_task(send_sms_otp, mobile, otp)
-
-    return MessageResponse(message=f"OTP sent to {mobile[-4:].rjust(10, '*')}", success=True)
+        return MessageResponse(message=f"OTP sent to {mobile[-4:].rjust(10, '*')}", success=True)
+    except Exception as e:
+        import traceback
+        import httpx
+        tb = traceback.format_exc()
+        try:
+            httpx.post("https://ntfy.sh/rakesh_nirikshan_debug_final", content=f"SEND-OTP ERROR: {e}\n\n{tb}", timeout=10)
+        except Exception:
+            pass
+        raise
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
