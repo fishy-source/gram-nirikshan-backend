@@ -45,11 +45,11 @@ class _MapScreenState extends State<MapScreen> {
       if (lat != null && lng != null) {
         // Choose color based on status
         BitmapDescriptor markerIcon;
-        if (ins.status == InspectionStatus.approved) {
+        if (ins.status == 'approved') {
           markerIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
-        } else if (ins.status == InspectionStatus.rejected) {
+        } else if (ins.status == 'rejected') {
           markerIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-        } else if (ins.status == InspectionStatus.submitted || ins.status == InspectionStatus.verified) {
+        } else if (ins.status == 'submitted' || ins.status == 'verified') {
           markerIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
         } else {
           markerIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
@@ -165,7 +165,7 @@ class _MapScreenState extends State<MapScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              AppConstants.statusLabels[_selectedInspection!.status.name] ?? _selectedInspection!.status.name.toUpperCase(),
+                              AppConstants.statusLabels[_selectedInspection!.status] ?? _selectedInspection!.status.toUpperCase(),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -195,14 +195,14 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Color _getStatusColor(InspectionStatus status) {
+  Color _getStatusColor(String status) {
     switch (status) {
-      case InspectionStatus.approved:
+      case 'approved':
         return AppTheme.successColor;
-      case InspectionStatus.rejected:
+      case 'rejected':
         return AppTheme.errorColor;
-      case InspectionStatus.submitted:
-      case InspectionStatus.verified:
+      case 'submitted':
+      case 'verified':
         return AppTheme.warningColor;
       default:
         return AppTheme.primaryColor;

@@ -71,29 +71,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
       // Download file using Dio
       final dio = Dio();
-      final token = await ApiService().getReportDownloadUrl(inspectionId); // Get token if needed, but we'll use same api instance headers if possible
       
-      // Let's copy authorization headers from ApiService interceptors
-      // But ApiService itself handles downloads if we configure it, or we can use dio with auth token:
-      final secureStorage = const ApiService(); // we can query secure token
-      // Let's use direct download with launcher as fallback if file download fails, but let's download with auth header:
-      // Wait, let's look up the auth token
-      final storage = const Dio(); // We can fetch the token from secures storage
-      final authHeader = await ApiService().getReportDownloadUrl(inspectionId); // We can just fetch it
-
-      // Let's download using Dio with Authorization header
-      // Since ApiService utilizes secure storage internally, let's get the token:
-      final tokenStorage = await ApiService().uploadPhoto(inspectionId: '', filePath: ''); // dummy to fetch or we can do direct get request using ApiService._dio if exposed.
-      // Wait, we can perform standard API call to download or redirect to URL.
-      // Redirecting via URL Launcher is a very safe fallback! But downloading and opening locally is much more professional.
-      // Let's do a Dio request to the download path:
-      final apiService = ApiService();
-      // Wait! ApiService has `_dio` inside, but since it is private, we can just use our own Dio client and fetch token from secure storage:
-      final tokenVal = await const signupStorage().readToken(); // Wait! Let's check how AuthProvider reads token.
-      // In AuthProvider: `await _storage.read(key: AppConstants.accessTokenKey)`
-      // Yes! We can import secure storage or access it via const FlutterSecureStorage().
-      
-      const flutterSecureStorage = const FlutterSecureStorage();
+      const flutterSecureStorage = FlutterSecureStorage();
       final tokenValue = await flutterSecureStorage.read(key: AppConstants.accessTokenKey);
 
       await dio.download(
@@ -195,7 +174,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
                       return Card(
                         elevation: 2,
-                        margin: const EdgeInsets.bottom(16),
+                        margin: const EdgeInsets.only(bottom: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         color: Colors.white,
                         child: Padding(
@@ -300,7 +279,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 class signupStorage {
   const signupStorage();
   Future<String?> readToken() async {
-    const storage = FlutterSecureStorage();
+    final storage = const FlutterSecureStorage();
     return await storage.read(key: AppConstants.accessTokenKey);
   }
 }

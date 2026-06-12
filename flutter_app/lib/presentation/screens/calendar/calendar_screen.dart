@@ -167,7 +167,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       final ins = selectedInspections[index];
                       return Card(
                         elevation: 1,
-                        margin: const EdgeInsets.bottom(12),
+                        margin: const EdgeInsets.only(bottom: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         color: Colors.white,
                         child: ListTile(
@@ -194,7 +194,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              AppConstants.statusLabels[ins.status.name] ?? ins.status.name.toUpperCase(),
+                              AppConstants.statusLabels[ins.status] ?? ins.status.toUpperCase(),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -219,14 +219,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Color _getStatusColor(InspectionStatus status) {
+  Color _getStatusColor(String status) {
     switch (status) {
-      case InspectionStatus.approved:
+      case 'approved':
         return AppTheme.successColor;
-      case InspectionStatus.rejected:
+      case 'rejected':
         return AppTheme.errorColor;
-      case InspectionStatus.submitted:
-      case InspectionStatus.verified:
+      case 'submitted':
+      case 'verified':
         return AppTheme.warningColor;
       default:
         return AppTheme.primaryColor;
