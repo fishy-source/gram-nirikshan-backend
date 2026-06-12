@@ -76,18 +76,47 @@ class _ReportsScreenState extends State<ReportsScreen> {
       final flutterSecureStorage = FlutterSecureStorage();
       final tokenValue = await flutterSecureStorage.read(key: AppConstants.accessTokenKey);
 
-      await dio.download(
-        downloadUrl,
-        savePath,
-        options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
-        onReceiveProgress: (received, total) {
-          if (total != -1) {
-            setState(() {
-              _downloadProgressMap[inspectionId] = received / total;
-            });
-          }
-        },
-      );
+      try {
+        await dio.download(
+          downloadUrl,
+          savePath,
+          options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
+          onReceiveProgress: (received, total) {
+            if (total != -1) {
+              setState(() {
+                _downloadProgressMap[inspectionId] = received / total;
+              });
+            }
+          },
+        );
+      } on DioException catch (de) {
+        if (de.response?.statusCode == 404) {
+          // Report not found, auto-generate first!
+          setState(() {
+            _generatingMap[inspectionId] = true;
+          });
+          await ApiService().generateReport(inspectionId);
+          setState(() {
+            _generatingMap[inspectionId] = false;
+          });
+          
+          // Retry downloading after successful generation
+          await dio.download(
+            downloadUrl,
+            savePath,
+            options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
+            onReceiveProgress: (received, total) {
+              if (total != -1) {
+                setState(() {
+                  _downloadProgressMap[inspectionId] = received / total;
+                });
+              }
+            },
+          );
+        } else {
+          rethrow;
+        }
+      }
 
       setState(() => _downloadingMap[inspectionId] = false);
 
@@ -105,18 +134,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         }
       }
     } catch (e) {
-      setState(() => _downloadingMap[inspectionId] = false);
+      setState(() {
+        _downloadingMap[inspectionId] = false;
+        _generatingMap[inspectionId] = false;
+      });
       if (mounted) {
-        // Try launching in browser as a fallback
-        final downloadUrl = await ApiService().getReportDownloadUrl(inspectionId);
-        final url = Uri.parse(downloadUrl);
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('डाउनलोड करने में विफल: $e'), backgroundColor: AppTheme.errorColor),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('रिपोर्ट खोलने या बनाने में विफल: $e'), backgroundColor: AppTheme.errorColor),
+        );
       }
     }
   }

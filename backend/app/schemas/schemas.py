@@ -242,6 +242,7 @@ class InspectionResponse(BaseModel):
     inspection_date: Optional[datetime] = None
     submitted_at: Optional[datetime] = None
     approved_at: Optional[datetime] = None
+    ai_report_draft: Optional[str] = None
     created_at: datetime
     panchayat: Optional[PanchayatResponse] = None
     engineer: Optional[UserResponse] = None

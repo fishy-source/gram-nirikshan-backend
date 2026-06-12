@@ -113,7 +113,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
             body: TabBarView(
               controller: _tabController,
               children: [
-                _buildDetailsTab(inspection),
+                _buildDetailsTab(inspection, provider),
                 _buildGPSTab(inspection, provider, user),
                 _buildPhotosTab(inspection),
                 _buildApprovalTab(inspection, provider, user),
@@ -126,7 +126,19 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     );
   }
 
-  Widget _buildDetailsTab(InspectionModel inspection) {
+  Future<void> _runAISuggestions(String id, InspectionProvider provider) async {
+    final success = await provider.suggestAIReport(id);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? '✅ AI रिपोर्ट मसौदा सफलतापूर्वक तैयार हो गया!' : '❌ AI जनरेशन विफल हुआ'),
+          backgroundColor: success ? AppTheme.successColor : AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  Widget _buildDetailsTab(InspectionModel inspection, InspectionProvider provider) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -143,17 +155,101 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
               _InfoRow(Icons.calendar_today_rounded, 'निरीक्षण तिथि', _formatDate(inspection.inspectionDate!)),
             _InfoRow(Icons.person_rounded, 'अभियंता', inspection.engineer?.name ?? 'N/A'),
           ]),
-          if (inspection.observations != null) ...[
+          if (inspection.observations != null && inspection.observations!.isNotEmpty) ...[
             const SizedBox(height: 12),
             _buildTextCard('अवलोकन (Observations)', inspection.observations!),
           ],
-          if (inspection.recommendations != null) ...[
+          if (inspection.recommendations != null && inspection.recommendations!.isNotEmpty) ...[
             const SizedBox(height: 12),
             _buildTextCard('सुझाव (Recommendations)', inspection.recommendations!),
           ],
-          if (inspection.actionTaken != null) ...[
+          if (inspection.actionTaken != null && inspection.actionTaken!.isNotEmpty) ...[
             const SizedBox(height: 12),
             _buildTextCard('की गई कार्रवाई (Action Taken)', inspection.actionTaken!),
+          ],
+          const SizedBox(height: 16),
+          // AI Suggested Report Card
+          if (inspection.aiReportDraft != null && inspection.aiReportDraft!.isNotEmpty) ...[
+            _buildTextCard('AI द्वारा सुझाया गया मसौदा (AI Suggested Draft)', inspection.aiReportDraft!),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text('अवलोकन में कॉपी करें?'),
+                          content: const Text('क्या आप इस AI रिपोर्ट मसौदे को अपने मुख्य अवलोकन (Observations) में कॉपी करना चाहते हैं?'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('रद्द करें')),
+                            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('कॉपी करें')),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true) {
+                        final ok = await provider.updateInspection(inspection.id, {
+                          'observations': inspection.aiReportDraft,
+                        });
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(ok ? '✅ अवलोकन सफलतापूर्वक अपडेट किया गया!' : '❌ अपडेट विफल'),
+                              backgroundColor: ok ? AppTheme.successColor : AppTheme.errorColor,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.copy_rounded, size: 16, color: Colors.white),
+                    label: const Text('अवलोकन में सेट करें', style: TextStyle(color: Colors.white, fontSize: 12)),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, color: AppTheme.secondaryColor),
+                  onPressed: provider.isLoading ? null : () => _runAISuggestions(inspection.id, provider),
+                  tooltip: 'पुनः जनरेट करें',
+                ),
+              ],
+            ),
+          ] else ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.smart_toy_rounded, size: 36, color: AppTheme.primaryColor),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'AI से रिपोर्ट का मसौदा तैयार करवाएं',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'यह आपके निरीक्षण डेटा, पंचायत और फ़ोटो के आधार पर विभाग-अनुकूल रिपोर्ट का मसौदा तैयार करेगा।',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey, fontSize: 11),
+                  ),
+                  const SizedBox(height: 12),
+                  provider.isLoading
+                      ? const CircularProgressIndicator()
+                      : ElevatedButton.icon(
+                          onPressed: () => _runAISuggestions(inspection.id, provider),
+                          icon: const Icon(Icons.bolt_rounded, color: Colors.white),
+                          label: const Text('AI (Gemini) से रिपोर्ट लिखवाएं', style: TextStyle(color: Colors.white)),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+                        ),
+                ],
+              ),
+            ),
           ],
         ],
       ),

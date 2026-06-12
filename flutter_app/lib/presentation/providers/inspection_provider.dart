@@ -171,4 +171,22 @@ class InspectionProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
   }
+
+  Future<bool> suggestAIReport(String id) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _api.suggestReport(id);
+      await loadInspectionDetail(id);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
 }

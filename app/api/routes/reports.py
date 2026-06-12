@@ -123,6 +123,7 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
         ("Observations", inspection.observations),
         ("Recommendations", inspection.recommendations),
         ("Action Taken", inspection.action_taken),
+        ("AI Suggested Report Draft (AI द्वारा सुझाया गया मसौदा)", inspection.ai_report_draft),
     ]:
         if content:
             story.append(Paragraph(section_title, label))

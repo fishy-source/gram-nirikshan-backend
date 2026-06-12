@@ -63,7 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                   _buildQuickActions(context),
                   const SizedBox(height: 20),
-                  _buildRecentActivity(),
+                  _buildRecentActivity(context),
                 ]),
               ),
             ),
@@ -281,24 +281,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildRecentActivity() {
+  Widget _buildRecentActivity(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('हाल की गतिविधि', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50))),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8)],
-          ),
-          child: const Center(
-            child: Column(children: [
-              Icon(Icons.history_rounded, size: 48, color: Colors.grey),
-              SizedBox(height: 8),
-              Text('निरीक्षण सूची देखने के लिए नीचे टैप करें', style: TextStyle(color: Colors.grey)),
-            ]),
+        GestureDetector(
+          onTap: () => Navigator.pushNamed(context, '/inspections'),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white, borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8)],
+            ),
+            child: const Center(
+              child: Column(children: [
+                Icon(Icons.history_rounded, size: 48, color: AppTheme.primaryColor),
+                SizedBox(height: 8),
+                Text('निरीक्षण सूची देखने के लिए यहाँ टैप करें', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
+              ]),
+            ),
           ),
         ),
       ],

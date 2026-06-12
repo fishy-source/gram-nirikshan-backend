@@ -118,6 +118,7 @@ class InspectionModel {
   final String? observations;
   final String? recommendations;
   final String? actionTaken;
+  final String? aiReportDraft;
   final DateTime? inspectionDate;
   final DateTime? submittedAt;
   final DateTime? approvedAt;
@@ -133,6 +134,7 @@ class InspectionModel {
     this.checkinLatitude, this.checkinLongitude, this.checkinTime, this.checkinAddress,
     this.checkoutLatitude, this.checkoutLongitude, this.checkoutTime, this.checkoutAddress,
     this.distanceCoveredKm, this.observations, this.recommendations, this.actionTaken,
+    this.aiReportDraft,
     this.inspectionDate, this.submittedAt, this.approvedAt, required this.createdAt,
     this.panchayat, this.engineer, this.photos = const [],
   });
@@ -154,6 +156,7 @@ class InspectionModel {
         distanceCoveredKm: (json['distance_covered_km'] as num?)?.toDouble(),
         observations: json['observations'], recommendations: json['recommendations'],
         actionTaken: json['action_taken'],
+        aiReportDraft: json['ai_report_draft'],
         inspectionDate: json['inspection_date'] != null ? DateTime.parse(json['inspection_date']) : null,
         submittedAt: json['submitted_at'] != null ? DateTime.parse(json['submitted_at']) : null,
         approvedAt: json['approved_at'] != null ? DateTime.parse(json['approved_at']) : null,
