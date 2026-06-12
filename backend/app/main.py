@@ -178,6 +178,7 @@ async def health_check():
     return {"status": "ok", "app": settings.APP_NAME, "version": settings.APP_VERSION}
 
 
+# Trigger redeployment to see if DB connection succeeded
 @app.get("/debug", tags=["Health"])
 async def debug_endpoint(seed: bool = False):
     import traceback
