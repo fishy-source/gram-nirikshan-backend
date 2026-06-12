@@ -2,7 +2,7 @@
 
 class AppConstants {
   // API Base URL - Change for production
-  static const String baseUrl = 'http://YOUR_SERVER_IP:8000/api/v1';
+  static const String baseUrl = 'https://web-production-ccc50.up.railway.app/api/v1';
   // For production: static const String baseUrl = 'https://api.gramnirikshan.in/api/v1';
 
   // App Info
