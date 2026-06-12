@@ -71,8 +71,11 @@ async def send_otp(
     for old_otp in old_otps.scalars():
         old_otp.is_used = True
 
-    # Generate new OTP
-    otp = generate_otp(settings.OTP_LENGTH)
+    # Generate new OTP (Static OTP '123456' for Rakesh and Test Admin, dynamic for others)
+    if mobile in ["8433484673", "9999999999"]:
+        otp = "123456"
+    else:
+        otp = generate_otp(settings.OTP_LENGTH)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
 
     otp_record = OTPRecord(mobile=mobile, otp=otp, expires_at=expires_at)
