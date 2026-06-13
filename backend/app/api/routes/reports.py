@@ -242,14 +242,14 @@ def to_pdf_html(text: str, bold: bool = False) -> str:
 
     html_parts = []
     for t, s in spans:
-        # Escape HTML characters first
-        escaped_s = s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br/>').replace('\r', '')
         if t == 'hindi':
-            kd_text = Unicode_to_KrutiDev(escaped_s)
+            kd_text = Unicode_to_KrutiDev(s)
+            escaped_kd = kd_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br/>').replace('\r', '')
             font = 'KrutiDev-Bold' if bold else 'KrutiDev'
             # Kruti Dev font glyphs are smaller than Helvetica, so we scale it up to size 11.5 for visual balance
-            html_parts.append(f'<font name="{font}" size="11.5">{kd_text}</font>')
+            html_parts.append(f'<font name="{font}" size="11.5">{escaped_kd}</font>')
         else:
+            escaped_s = s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br/>').replace('\r', '')
             font = 'Helvetica-Bold' if bold else 'Helvetica'
             html_parts.append(f'<font name="{font}">{escaped_s}</font>')
             
@@ -279,6 +279,18 @@ def get_val_str(val) -> str:
     if hasattr(val, "value"):
         return str(val.value)
     return str(val)
+
+
+def get_formatted_district_block(inspection, panchayat):
+    dist = inspection.district or (panchayat.district if panchayat else "N/A")
+    if dist.lower() == "hathras":
+        dist = "हाथरस"
+    
+    blk = inspection.block or (panchayat.block if panchayat else "N/A")
+    if blk.lower() == "sikandrarao":
+        blk = "सिकंदराराव"
+        
+    return dist, blk
 
 
 def build_docx_report(inspection, panchayat, engineer, photos, approvals, output_path: str):
@@ -342,7 +354,7 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
 
     # Basic Information
     engineer_name = inspection.investigator_name or (engineer.name_hindi or engineer.name if engineer else "N/A")
-    blk = inspection.block or (panchayat.block if panchayat else "N/A")
+    dist, blk = get_formatted_district_block(inspection, panchayat)
     
     # Subheading/Section: Basic Info
     p_info_lbl = doc.add_paragraph()
@@ -354,7 +366,7 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
     
     info_pairs = [
         (f"निरीक्षण संख्या (ID): {inspection.inspection_id}", f"स्थिति (Status): {get_val_str(inspection.status).upper()}"),
-        (f"जांचकर्ता (Inspector): {engineer_name}", f"जनपद (District): हाथरस"),
+        (f"जांचकर्ता (Inspector): {engineer_name}", f"जनपद (District): {dist}"),
         (f"ग्राम पंचायत: {panchayat.name_hindi or panchayat.name if panchayat else 'N/A'}", f"ग्राम (Village): {panchayat.village or 'N/A' if panchayat else 'N/A'}"),
         (f"विकास खंड (Block): {blk}", f"निरीक्षण तिथि: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}"),
         (f"परियोजना का नाम: {inspection.project_name or 'N/A'}", f"कार्य कोड (Code): {inspection.project_code or 'N/A'}"),
@@ -543,13 +555,13 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
 
     # ── Basic Information ──────────────────────────────────────
     engineer_name = inspection.investigator_name or (engineer.name_hindi or engineer.name if engineer else "N/A")
-    blk = inspection.block or (panchayat.block if panchayat else "N/A")
+    dist, blk = get_formatted_district_block(inspection, panchayat)
 
     info_data = [
         [Paragraph(to_pdf_html("निरीक्षण संख्या (ID)"), normal), Paragraph(to_pdf_html(inspection.inspection_id), normal), 
          Paragraph(to_pdf_html("स्थिति (Status)"), normal), Paragraph(to_pdf_html(get_val_str(inspection.status).upper()), normal)],
         [Paragraph(to_pdf_html("जांचकर्ता (Inspector)"), normal), Paragraph(to_pdf_html(engineer_name), normal), 
-         Paragraph(to_pdf_html("जनपद (District)"), normal), Paragraph(to_pdf_html("हाथरस"), normal)],
+         Paragraph(to_pdf_html("जनपद (District)"), normal), Paragraph(to_pdf_html(dist), normal)],
         [Paragraph(to_pdf_html("ग्राम पंचायत"), normal), Paragraph(to_pdf_html(panchayat.name_hindi or panchayat.name if panchayat else "N/A"), normal), 
          Paragraph(to_pdf_html("ग्राम (Village)"), normal), Paragraph(to_pdf_html(panchayat.village or "N/A" if panchayat else "N/A"), normal)],
         [Paragraph(to_pdf_html("विकास खंड (Block)"), normal), Paragraph(to_pdf_html(blk), normal), 

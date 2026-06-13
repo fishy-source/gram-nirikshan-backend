@@ -156,11 +156,14 @@ async def upload_photo(
     # Get panchayat name
     result2 = await db.execute(select(Panchayat).where(Panchayat.id == inspection.panchayat_id))
     panchayat = result2.scalar_one_or_none()
-    panchayat_name = panchayat.name if panchayat else "Unknown"
+    panchayat_name = (panchayat.name_hindi or panchayat.name) if panchayat else "Unknown"
+
+    # Get dynamic engineer/investigator name
+    engineer_name = inspection.investigator_name or current_user.name_hindi or current_user.name
 
     # Process photo
     file_path, thumb_path, size_kb = await process_and_save_photo(
-        file_bytes, current_user.name, panchayat_name, latitude, longitude, caption
+        file_bytes, engineer_name, panchayat_name, latitude, longitude, caption
     )
 
     # Save DB record
@@ -174,7 +177,7 @@ async def upload_photo(
         latitude=latitude,
         longitude=longitude,
         captured_at=datetime.now(timezone.utc),
-        engineer_name=current_user.name,
+        engineer_name=engineer_name,
         panchayat_name=panchayat_name,
         caption=caption,
     )
