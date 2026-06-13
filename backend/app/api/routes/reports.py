@@ -22,6 +22,13 @@ from pathlib import Path
 from datetime import datetime, timezone
 import uuid, os, shutil
 
+try:
+    import docx
+    from docx.shared import Inches, Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+except ImportError:
+    docx = None
+
 from app.db.database import get_db
 from app.models.models import Inspection, Panchayat, User, Photo, Approval, Report
 from app.schemas.schemas import MessageResponse
@@ -120,6 +127,251 @@ def extract_witness_name(description: str) -> str:
         if name:
             return name
     return "___________________"
+
+
+def build_docx_report(inspection, panchayat, engineer, photos, approvals, output_path: str):
+    """Build a formal Microsoft Word report."""
+    if not docx:
+        raise RuntimeError("python-docx library is not installed on this server.")
+        
+    doc = docx.Document()
+    
+    # Set margins to 0.75 inches for page-like structure
+    for section in doc.sections:
+        section.top_margin = Inches(0.75)
+        section.bottom_margin = Inches(0.75)
+        section.left_margin = Inches(0.75)
+        section.right_margin = Inches(0.75)
+        
+    # Title / Header
+    dept_name = settings.DEPARTMENT_NAME or "ग्राम विकास विभाग, उत्तर प्रदेश"
+    p_title = doc.add_paragraph()
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_title = p_title.add_run(dept_name)
+    run_title.font.size = Pt(16)
+    run_title.bold = True
+    run_title.font.color.rgb = RGBColor(0x1a, 0x52, 0x76) # PRIMARY
+    
+    p_sub = doc.add_paragraph()
+    p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_sub = p_sub.add_run("निरीक्षण रिपोर्ट (INSPECTION REPORT)\n")
+    run_sub.font.size = Pt(11)
+    run_sub.bold = True
+    run_sub.font.color.rgb = RGBColor(0x2e, 0x86, 0xc1) # SECONDARY
+    
+    run_id = p_sub.add_run(f"रिपोर्ट संख्या (Report ID): {inspection.inspection_id}")
+    run_id.font.size = Pt(10)
+    run_id.italic = True
+    
+    # Border line
+    p_line = doc.add_paragraph()
+    p_line.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_line = p_line.add_run("─" * 65)
+    run_line.font.color.rgb = RGBColor(0x1a, 0x52, 0x76)
+    
+    # Basic Information
+    engineer_name = inspection.investigator_name or (engineer.name_hindi or engineer.name if engineer else "N/A")
+    dist = inspection.district or (panchayat.district if panchayat else "N/A")
+    blk = inspection.block or (panchayat.block if panchayat else "N/A")
+    
+    table = doc.add_table(rows=6, cols=2)
+    table.style = 'Table Grid'
+    
+    def set_cell(cell, text, bold=False, text_color=None):
+        cell.text = ""
+        p = cell.paragraphs[0]
+        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.space_before = Pt(2)
+        run = p.add_run(text)
+        run.font.size = Pt(10)
+        if bold:
+            run.bold = True
+        if text_color:
+            run.font.color.rgb = text_color
+            
+    # Row contents helper
+    info_pairs = [
+        (f"निरीक्षण संख्या (ID): {inspection.inspection_id}", f"स्थिति (Status): {inspection.status.value.upper()}"),
+        (f"जांचकर्ता (Inspector): {engineer_name}", f"पद (Designation): {engineer.designation or 'अवर अभियंता' if engineer else 'N/A'}"),
+        (f"ग्राम पंचायत: {panchayat.name_hindi or panchayat.name if panchayat else 'N/A'}", f"जनपद (District): {dist}"),
+        (f"विकास खंड (Block): {blk}", f"ग्राम (Village): {panchayat.village or 'N/A' if panchayat else 'N/A'}"),
+        (f"निरीक्षण तिथि: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}", f"रिपोर्ट तिथि: {datetime.now().strftime('%d/%m/%Y')}"),
+        (f"परियोजना का नाम: {inspection.project_name or 'N/A'}", f"कार्य कोड (Code): {inspection.project_code or 'N/A'}"),
+    ]
+    
+    for idx, (col1, col2) in enumerate(info_pairs):
+        row = table.rows[idx]
+        set_cell(row.cells[0], col1)
+        set_cell(row.cells[1], col2)
+        
+    doc.add_paragraph() # Spacer
+    
+    # GPS Details
+    if inspection.checkin_latitude:
+        p_gps_lbl = doc.add_paragraph()
+        run_gps_lbl = p_gps_lbl.add_run("जीपीएस विवरण (GPS Check-in/Check-out Details)")
+        run_gps_lbl.bold = True
+        run_gps_lbl.font.size = Pt(11)
+        run_gps_lbl.font.color.rgb = RGBColor(0x1a, 0x52, 0x76)
+        
+        gps_table = doc.add_table(rows=3, cols=2)
+        gps_table.style = 'Table Grid'
+        
+        gps_pairs = [
+            (f"चेक-इन समय: {str(inspection.checkin_time)[:16] if inspection.checkin_time else 'N/A'}", f"चेक-इन जीपीएस: {inspection.checkin_latitude:.6f}, {inspection.checkin_longitude:.6f}"),
+            (f"चेक-आउट समय: {str(inspection.checkout_time)[:16] if inspection.checkout_time else 'N/A'}", f"चेक-आउट जीपीएस: {f'{inspection.checkout_latitude:.6f}, {inspection.checkout_longitude:.6f}' if inspection.checkout_latitude else 'N/A'}"),
+            (f"दूरी (Distance): {f'{inspection.distance_covered_km:.2f} किमी' if inspection.distance_covered_km else 'N/A'}", f"चेक-इन स्थान: {inspection.checkin_address or 'N/A'}"),
+        ]
+        
+        for idx, (col1, col2) in enumerate(gps_pairs):
+            row = gps_table.rows[idx]
+            set_cell(row.cells[0], col1)
+            set_cell(row.cells[1], col2)
+            
+        doc.add_paragraph() # Spacer
+        
+    # Map Attachment
+    if inspection.map_image_path:
+        map_file_path = get_absolute_path(inspection.map_image_path)
+        if map_file_path.exists():
+            p_map = doc.add_paragraph()
+            run_map = p_map.add_run("निरीक्षण स्थान मानचित्र (Inspection Location Map)")
+            run_map.bold = True
+            run_map.font.size = Pt(11)
+            run_map.font.color.rgb = RGBColor(0x1a, 0x52, 0x76)
+            
+            p_img = doc.add_paragraph()
+            p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            try:
+                p_img.add_run().add_picture(str(map_file_path), width=Inches(5.5))
+            except Exception as e:
+                p_img.add_run(f"मानचित्र छवि लोड करने में विफल: {e}")
+            doc.add_paragraph()
+            
+    # Observations & Recommendations
+    for section_title, content in [
+        ("मुख्य अवलोकन / कमियां (Observations)", inspection.observations),
+        ("सुझाव व संस्तुतियां (Recommendations)", inspection.recommendations),
+        ("की गई कार्रवाई (Action Taken)", inspection.action_taken),
+        ("विभागीय मसौदा रिपोर्ट (AI Suggested Report)", inspection.ai_report_draft),
+    ]:
+        if content:
+            p_lbl = doc.add_paragraph()
+            run_lbl = p_lbl.add_run(section_title)
+            run_lbl.bold = True
+            run_lbl.font.size = Pt(11)
+            run_lbl.font.color.rgb = RGBColor(0x1a, 0x52, 0x76)
+            
+            p_val = doc.add_paragraph()
+            p_val.paragraph_format.space_after = Pt(6)
+            run_val = p_val.add_run(content)
+            run_val.font.size = Pt(10)
+            doc.add_paragraph() # Spacer
+            
+    # Photos
+    valid_photos = []
+    for p in photos:
+        if p.file_path:
+            abs_p = get_absolute_path(p.file_path)
+            if abs_p.exists():
+                valid_photos.append((p, abs_p))
+                
+    if valid_photos:
+        p_photo_lbl = doc.add_paragraph()
+        run_photo_lbl = p_photo_lbl.add_run("निरीक्षण स्थल के छायाचित्र (Inspection Photographs)")
+        run_photo_lbl.bold = True
+        run_photo_lbl.font.size = Pt(11)
+        run_photo_lbl.font.color.rgb = RGBColor(0x1a, 0x52, 0x76)
+        
+        # Grid layout for photos: standard tables can embed pictures
+        photo_table = doc.add_table(rows=(len(valid_photos) + 1) // 2, cols=2)
+        photo_table.style = 'Table Grid'
+        
+        for idx, (photo, abs_p) in enumerate(valid_photos):
+            row_idx = idx // 2
+            col_idx = idx % 2
+            cell = photo_table.rows[row_idx].cells[col_idx]
+            cell.text = ""
+            p_cell = cell.paragraphs[0]
+            p_cell.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            try:
+                p_cell.add_run().add_picture(str(abs_p), width=Inches(2.5))
+                caption_text = f"\n{photo.caption or 'स्थल छायाचित्र'}\n{str(photo.captured_at)[:16] if photo.captured_at else ''}"
+                run_cap = p_cell.add_run(caption_text)
+                run_cap.font.size = Pt(8)
+                run_cap.italic = True
+            except Exception as e:
+                p_cell.add_run(f"छायाचित्र लोड करने में विफल: {e}")
+        doc.add_paragraph()
+        
+    # Approval Trail
+    if approvals:
+        p_app_lbl = doc.add_paragraph()
+        run_app_lbl = p_app_lbl.add_run("कार्यप्रवाह एवं अनुमोदन इतिहास (Approval Trail)")
+        run_app_lbl.bold = True
+        run_app_lbl.font.size = Pt(11)
+        run_app_lbl.font.color.rgb = RGBColor(0x1a, 0x52, 0x76)
+        
+        app_table = doc.add_table(rows=1 + len(approvals), cols=5)
+        app_table.style = 'Table Grid'
+        
+        headers = ["स्तर (Level)", "अधिकारी (Approver)", "कार्रवाई (Action)", "टिप्पणी (Remarks)", "दिनांक (Date)"]
+        for col_idx, text in enumerate(headers):
+            set_cell(app_table.rows[0].cells[col_idx], text, bold=True, text_color=RGBColor(0xff, 0xff, 0xff))
+            
+        for row_idx, a in enumerate(approvals):
+            app_name = a.approver.name_hindi or a.approver.name if a.approver else "N/A"
+            desig = a.approver.designation or "अधिकारी" if a.approver else ""
+            act_labels = {"pending": "लंबित", "approved": "स्वीकृत", "rejected": "अस्वीकृत", "forwarded": "अग्रेषित"}
+            action_hindi = act_labels.get(a.action.value.lower(), a.action.value.upper())
+            
+            row = app_table.rows[row_idx + 1]
+            set_cell(row.cells[0], a.level)
+            set_cell(row.cells[1], f"{app_name} ({desig})")
+            set_cell(row.cells[2], action_hindi)
+            set_cell(row.cells[3], a.remarks or "-")
+            set_cell(row.cells[4], str(a.created_at)[:16])
+            
+        doc.add_paragraph()
+        
+    # Signatures
+    doc.add_paragraph("\n\n")
+    witness_name = extract_witness_name(inspection.description)
+    engineer_designation = engineer.designation or "अवर अभियंता" if engineer else "N/A"
+    
+    p_sig = doc.add_paragraph()
+    p_sig.paragraph_format.line_spacing = 1.3
+    
+    run_sig_h = p_sig.add_run("जांचकर्ता अधिकारी के हस्ताक्षर" + " " * 32 + "गवाह के हस्ताक्षर\n")
+    run_sig_h.bold = True
+    run_sig_h.font.size = Pt(10)
+    
+    engineer_part = f"नाम (Name): {engineer_name}"
+    witness_part = f"नाम (Name): {witness_name}"
+    spacing = max(5, 50 - len(engineer_part))
+    p_sig.add_run(engineer_part + " " * spacing + witness_part + "\n")
+    
+    desig_part = f"पदनाम (Designation): {engineer_designation}"
+    addr_part = "पता/मोबाइल: ___________________"
+    spacing_desig = max(5, 50 - len(desig_part))
+    p_sig.add_run(desig_part + " " * spacing_desig + addr_part + "\n")
+    
+    date_part = f"दिनांक (Date): {datetime.now().strftime('%d/%m/%Y')}"
+    date_witness = "दिनांक (Date): ___________________"
+    spacing_date = max(5, 50 - len(date_part))
+    p_sig.add_run(date_part + " " * spacing_date + date_witness + "\n")
+    
+    for r in p_sig.runs[1:]:
+        r.font.size = Pt(10)
+        
+    # Footer
+    p_foot = doc.add_paragraph()
+    p_foot.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_foot = p_foot.add_run(f"\n──────────────────────────────────────────────────\nग्राम निरीक्षण मोबाइल ऐप द्वारा स्वचालित जनरेटेड | {datetime.now().strftime('%d/%m/%Y %H:%M')} | निरीक्षण ID: {inspection.inspection_id}")
+    run_foot.font.size = Pt(8)
+    run_foot.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
+    
+    doc.save(output_path)
 
 
 def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_path: str):
@@ -414,7 +666,7 @@ async def generate_report(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
-    # Save report record
+    # Save PDF report record
     file_size_kb = Path(output_path).stat().st_size // 1024
     report = Report(
         inspection_id=inspection_id,
@@ -422,11 +674,31 @@ async def generate_report(
         file_path=output_path,
         file_name=file_name,
         file_size_kb=file_size_kb,
+        report_format="pdf",
     )
     db.add(report)
 
+    # DOCX Generation
+    docx_file_name = f"Report_{inspection.inspection_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
+    docx_output_path = str(REPORTS_DIR / docx_file_name)
+    try:
+        build_docx_report(inspection, panchayat, engineer, list(photos), list(approvals), docx_output_path)
+        docx_file_size_kb = Path(docx_output_path).stat().st_size // 1024
+        docx_report = Report(
+            inspection_id=inspection_id,
+            generated_by=current_user.id,
+            file_path=docx_output_path,
+            file_name=docx_file_name,
+            file_size_kb=docx_file_size_kb,
+            report_format="docx",
+        )
+        db.add(docx_report)
+    except Exception as docx_err:
+        import logging
+        logging.getLogger(__name__).error(f"DOCX generation failed: {docx_err}")
+
     return MessageResponse(
-        message="Report generated successfully",
+        message="Reports generated successfully",
         success=True,
         data={"file_name": file_name, "size_kb": file_size_kb},
     )
@@ -435,20 +707,24 @@ async def generate_report(
 @router.get("/download/{inspection_id}")
 async def download_report(
     inspection_id: str,
+    format: str = "pdf",
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Download latest report PDF for an inspection."""
+    """Download latest report PDF or DOCX for an inspection."""
     result = await db.execute(
         select(Report).where(Report.inspection_id == inspection_id)
+        .where(Report.report_format == format)
         .order_by(Report.created_at.desc())
     )
     report = result.scalar_one_or_none()
     if not report or not Path(report.file_path).exists():
-        raise HTTPException(status_code=404, detail="Report not found. Generate it first.")
+        raise HTTPException(status_code=404, detail=f"Report in {format} format not found. Generate it first.")
 
+    media_type = "application/pdf" if format == "pdf" else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     return FileResponse(
         report.file_path,
-        media_type="application/pdf",
+        media_type=media_type,
         filename=report.file_name,
     )
+
