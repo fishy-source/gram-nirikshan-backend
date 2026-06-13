@@ -1,7 +1,7 @@
 """
 FastAPI Main Application Entry Point for Gram Nirikshan App.
 """
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -207,27 +207,6 @@ app.add_middleware(
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    import traceback
-    import httpx
-    tb = traceback.format_exc()
-    logger.error(f"Global exception on {request.method} {request.url.path}: {exc}\n{tb}")
-    try:
-        # Send traceback to ntfy
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                "https://ntfy.sh/rakesh_nirikshan_debug_final",
-                content=f"500 ERROR: {exc}\n\nPath: {request.url.path}\nMethod: {request.method}\n\n{tb}",
-                timeout=10
-            )
-    except Exception:
-        pass
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal Server Error", "error": str(exc), "traceback": tb}
-    )
-
 # ─── Static File Serving ───────────────────────────────────────────────────────
 
 uploads_path = Path(settings.UPLOAD_DIR)
@@ -402,27 +381,6 @@ async def debug_endpoint(seed: bool = False):
                     "name": p.name
                 })
             info["panchayats"] = panchayats_list
-
-            # Query inspections columns and show create table
-            try:
-                res_cols = await session.execute(text("SHOW COLUMNS FROM inspections"))
-                cols_list = []
-                for col in res_cols.fetchall():
-                    cols_list.append({
-                        "field": col[0],
-                        "type": col[1],
-                        "null": col[2],
-                        "key": col[3],
-                        "default": col[4],
-                        "extra": col[5]
-                    })
-                info["inspections_columns"] = cols_list
-
-                create_table_insp = await session.execute(text("SHOW CREATE TABLE inspections"))
-                info["show_create_table_inspections"] = [dict(r._mapping) for r in create_table_insp]
-            except Exception as col_err:
-                info["inspections_schema_error"] = str(col_err)
-
     except Exception as e:
         info["db_connection"] = f"Failed: {str(e)}"
         info["db_traceback"] = traceback.format_exc()
