@@ -683,34 +683,34 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
     label = ParagraphStyle("Label", fontSize=9, fontName='Helvetica-Bold', textColor=PRIMARY, spaceBefore=4, spaceAfter=2)
     label_large = ParagraphStyle("LabelLarge", fontSize=20, fontName='Helvetica-Bold', textColor=PRIMARY, spaceBefore=12, spaceAfter=6, leading=24)
 
-    story.append(Paragraph(to_pdf_html("निरीक्षण आख्या", bold=True, size=26), title_26))
+    story.append(Paragraph(to_pdf_html("INSPECTION REPORT", bold=True, size=26), title_26))
     story.append(HRFlowable(width="100%", thickness=1.5, color=PRIMARY, spaceBefore=2, spaceAfter=6))
 
     # ── Basic Information ──────────────────────────────────────
-    engineer_name = inspection.investigator_name or (engineer.name_hindi or engineer.name if engineer else "N/A")
+    engineer_name = inspection.investigator_name or (engineer.name or engineer.name_hindi if engineer else "N/A")
     dist, blk = get_formatted_district_block(inspection, panchayat)
 
     status_val = get_val_str(inspection.status).lower()
     status_labels = {
-        "draft": "मसौदा (Draft)",
-        "submitted": "प्रस्तुत (Submitted)",
-        "verified": "सत्यापित (Verified)",
-        "approved": "स्वीकृत (Approved)",
-        "rejected": "अस्वीकृत (Rejected)"
+        "draft": "Draft",
+        "submitted": "Submitted",
+        "verified": "Verified",
+        "approved": "Approved",
+        "rejected": "Rejected"
     }
-    status_hindi = status_labels.get(status_val, status_val.upper())
+    status_eng = status_labels.get(status_val, status_val.upper())
 
     info_data = [
-        [Paragraph(to_pdf_html("निरीक्षण संख्या (ID)"), normal), Paragraph(to_pdf_html(inspection.inspection_id), normal), 
-         Paragraph(to_pdf_html("स्थिति (Status)"), normal), Paragraph(to_pdf_html(status_hindi), normal)],
-        [Paragraph(to_pdf_html("जाँचकर्ता (Inspector)"), normal), Paragraph(to_pdf_html(engineer_name), normal), 
-         Paragraph(to_pdf_html("जनपद (District)"), normal), Paragraph(to_pdf_html(dist), normal)],
-        [Paragraph(to_pdf_html("ग्राम पंचायत"), normal), Paragraph(to_pdf_html(panchayat.name_hindi or panchayat.name if panchayat else "N/A"), normal), 
-         Paragraph(to_pdf_html("ग्राम (Village)"), normal), Paragraph(to_pdf_html(panchayat.village or "N/A" if panchayat else "N/A"), normal)],
-        [Paragraph(to_pdf_html("विकासखंड (Block)"), normal), Paragraph(to_pdf_html(blk), normal), 
-         Paragraph(to_pdf_html("निरीक्षण तिथि/दिनांक"), normal), Paragraph(to_pdf_html(str(inspection.inspection_date)[:10] if inspection.inspection_date else "N/A"), normal)],
-        [Paragraph(to_pdf_html("परियोजना का नाम"), normal), Paragraph(to_pdf_html(inspection.project_name or "N/A"), normal), 
-         Paragraph(to_pdf_html("कार्य कोड (Code)"), normal), Paragraph(to_pdf_html(inspection.project_code or "N/A"), normal)],
+        [Paragraph(to_pdf_html("Inspection ID"), normal), Paragraph(to_pdf_html(inspection.inspection_id), normal), 
+         Paragraph(to_pdf_html("Status"), normal), Paragraph(to_pdf_html(status_eng), normal)],
+        [Paragraph(to_pdf_html("Inspector"), normal), Paragraph(to_pdf_html(engineer_name), normal), 
+         Paragraph(to_pdf_html("District"), normal), Paragraph(to_pdf_html(dist), normal)],
+        [Paragraph(to_pdf_html("Gram Panchayat"), normal), Paragraph(to_pdf_html(panchayat.name or panchayat.name_hindi if panchayat else "N/A"), normal), 
+         Paragraph(to_pdf_html("Village"), normal), Paragraph(to_pdf_html(panchayat.village or "N/A" if panchayat else "N/A"), normal)],
+        [Paragraph(to_pdf_html("Block"), normal), Paragraph(to_pdf_html(blk), normal), 
+         Paragraph(to_pdf_html("Inspection Date"), normal), Paragraph(to_pdf_html(str(inspection.inspection_date)[:10] if inspection.inspection_date else "N/A"), normal)],
+        [Paragraph(to_pdf_html("Project Name"), normal), Paragraph(to_pdf_html(inspection.project_name or "N/A"), normal), 
+         Paragraph(to_pdf_html("Work Code"), normal), Paragraph(to_pdf_html(inspection.project_code or "N/A"), normal)],
     ]
 
     info_table = Table(info_data, colWidths=[4*cm, 5.5*cm, 4*cm, 5.5*cm])
@@ -727,13 +727,13 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
 
     # ── GPS Information ────────────────────────────────────────
     if inspection.checkin_latitude:
-        story.append(Paragraph(to_pdf_html("जी.पी.एस. आगमन/प्रस्थान विवरण (GPS Check-in/Check-out Details)", bold=True), label))
+        story.append(Paragraph(to_pdf_html("GPS Check-in / Check-out Details", bold=True), label))
         gps_data = [
-            [Paragraph(to_pdf_html("चेक-इन (आगमन) समय"), normal), Paragraph(to_pdf_html(str(inspection.checkin_time)[:16] if inspection.checkin_time else "N/A"), normal),
-             Paragraph(to_pdf_html("चेक-इन जी.पी.एस."), normal), Paragraph(to_pdf_html(f"{inspection.checkin_latitude:.6f}, {inspection.checkin_longitude:.6f}"), normal)],
-            [Paragraph(to_pdf_html("चेक-आउट (प्रस्थान) समय"), normal), Paragraph(to_pdf_html(str(inspection.checkout_time)[:16] if inspection.checkout_time else "N/A"), normal),
-             Paragraph(to_pdf_html("चेक-आउट जी.पी.एस."), normal), Paragraph(to_pdf_html(f"{inspection.checkout_latitude:.6f}, {inspection.checkout_longitude:.6f}" if inspection.checkout_latitude else "N/A"), normal)],
-            [Paragraph(to_pdf_html("चेक-इन (आगमन) स्थल"), normal), Paragraph(to_pdf_html(inspection.checkin_address or "N/A"), normal), "", ""],
+            [Paragraph(to_pdf_html("Check-in Time"), normal), Paragraph(to_pdf_html(str(inspection.checkin_time)[:16] if inspection.checkin_time else "N/A"), normal),
+             Paragraph(to_pdf_html("Check-in GPS"), normal), Paragraph(to_pdf_html(f"{inspection.checkin_latitude:.6f}, {inspection.checkin_longitude:.6f}"), normal)],
+            [Paragraph(to_pdf_html("Check-out Time"), normal), Paragraph(to_pdf_html(str(inspection.checkout_time)[:16] if inspection.checkout_time else "N/A"), normal),
+             Paragraph(to_pdf_html("Check-out GPS"), normal), Paragraph(to_pdf_html(f"{inspection.checkout_latitude:.6f}, {inspection.checkout_longitude:.6f}" if inspection.checkout_latitude else "N/A"), normal)],
+            [Paragraph(to_pdf_html("Check-in Location"), normal), Paragraph(to_pdf_html(inspection.checkin_address or "N/A"), normal), "", ""],
         ]
         gps_table = Table(gps_data, colWidths=[4*cm, 5.5*cm, 4*cm, 5.5*cm])
         gps_table.setStyle(TableStyle([
@@ -751,19 +751,19 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
     if inspection.map_image_path:
         map_file_path = get_absolute_path(inspection.map_image_path)
         if map_file_path.exists():
-            story.append(Paragraph(to_pdf_html("निरीक्षण स्थल मानचित्र (Inspection Location Map)", bold=True), label))
+            story.append(Paragraph(to_pdf_html("Inspection Location Map", bold=True), label))
             story.append(Spacer(1, 0.1*cm))
             try:
                 img = RLImage(str(map_file_path), width=15*cm, height=6.5*cm)
                 story.append(KeepTogether([img, Spacer(1, 0.15*cm)]))
             except Exception as e:
-                story.append(Paragraph(to_pdf_html(f"मानचित्र छवि लोड करने में विफल: {str(e)}"), normal))
+                story.append(Paragraph(to_pdf_html(f"Failed to load map image: {str(e)}"), normal))
 
     # ── Observations & Recommendations ─────────────────────────
     for section_title, content in [
-        ("मुख्य अवलोकन एवं कमियाँ (Observations)", inspection.observations),
-        ("सुझाव एवं संस्तुतियाँ (Recommendations)", inspection.recommendations),
-        ("की गई कार्रवाई (Action Taken)", inspection.action_taken),
+        ("Key Observations / Deficiencies", inspection.observations),
+        ("Corrective Recommendations / Measures", inspection.recommendations),
+        ("Action Taken / Remarks", inspection.action_taken),
     ]:
         if content:
             story.append(Paragraph(to_pdf_html(section_title + " :-", bold=True, size=20), label_large))
@@ -772,7 +772,7 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
 
     # ── AI Report Draft ────────────────────────────────────────
     if inspection.ai_report_draft:
-        story.append(Paragraph(to_pdf_html("विस्तृत निरीक्षण आख्या :-", bold=True, size=20), label_large))
+        story.append(Paragraph(to_pdf_html("Detailed Inspection Report :-", bold=True, size=20), label_large))
         story.append(Spacer(1, 0.1*cm))
         ai_lines = inspection.ai_report_draft.split('\n')
         for line in ai_lines:
@@ -898,6 +898,55 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
     doc.build(story)
 
 
+async def translate_fields_to_english(fields_dict: dict) -> dict:
+    # Filter only fields that have Hindi characters (range 0x0900 to 0x097F)
+    hindi_fields = {}
+    for k, v in fields_dict.items():
+        if v and isinstance(v, str) and any(0x0900 <= ord(c) <= 0x097F for c in v):
+            hindi_fields[k] = v
+            
+    if not hindi_fields:
+        return fields_dict
+        
+    try:
+        from app.api.routes.ai import call_gemini
+        import json
+        
+        prompt = f"""You are a professional translator. Translate the following fields from Hindi to standard, professional English. Keep technical terms, names, and addresses appropriate for a formal government report.
+        
+Provide your response strictly as a JSON object matching the input keys, with the translated values. Do not output any markdown formatting, no explanation, no backticks (e.g. do not wrap in ```json). Just output raw JSON.
+
+Input JSON:
+{json.dumps(hindi_fields, ensure_ascii=False)}"""
+
+        translated_res = await call_gemini(prompt, language="en")
+        if translated_res and not translated_res.startswith("AI Error:"):
+            clean_res = translated_res.strip()
+            if clean_res.startswith("```"):
+                lines = clean_res.split("\n")
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                clean_res = "\n".join(lines).strip()
+            
+            try:
+                translated_dict = json.loads(clean_res)
+                res_dict = dict(fields_dict)
+                for k, v in translated_dict.items():
+                    if k in res_dict:
+                        res_dict[k] = v
+                return res_dict
+            except Exception as parse_err:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to parse translation JSON: {parse_err}. Response was: {clean_res}")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Bulk translation failed: {e}")
+        
+    return fields_dict
+
+
 @router.post("/generate/{inspection_id}", response_model=MessageResponse)
 async def generate_report(
     inspection_id: str,
@@ -929,12 +978,96 @@ async def generate_report(
     file_name = f"Report_{inspection.inspection_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     output_path = str(REPORTS_DIR / file_name)
 
-    # Check if AI report draft is missing, generate it dynamically using Gemini
-    if not inspection.ai_report_draft:
-        try:
-            from app.api.routes.ai import call_gemini
-            
-            prompt = f"""Draft a highly formal and professional Gram Panchayat inspection report (Inspection Memo) in English according to the standards of the Rural Development Department.
+    orig_inspection_vals = {
+        "title": inspection.title,
+        "project_name": inspection.project_name,
+        "observations": inspection.observations,
+        "recommendations": inspection.recommendations,
+        "action_taken": inspection.action_taken,
+        "investigator_name": inspection.investigator_name,
+        "checkin_address": inspection.checkin_address,
+    }
+    
+    orig_panchayat_vals = {}
+    if panchayat:
+        orig_panchayat_vals["name"] = panchayat.name
+        orig_panchayat_vals["name_hindi"] = panchayat.name_hindi
+        orig_panchayat_vals["village"] = panchayat.village
+        
+    orig_engineer_vals = {}
+    if engineer:
+        orig_engineer_vals["name"] = engineer.name
+        orig_engineer_vals["name_hindi"] = engineer.name_hindi
+        orig_engineer_vals["designation"] = engineer.designation
+
+    orig_photo_captions = {p.id: p.caption for p in photos if p.id}
+    orig_approval_remarks = {a.id: a.remarks for a in approvals if a.id}
+
+    try:
+        # Collect all fields to translate in a single bulk API call
+        fields_to_translate = {
+            "title": inspection.title,
+            "project_name": inspection.project_name,
+            "observations": inspection.observations,
+            "recommendations": inspection.recommendations,
+            "action_taken": inspection.action_taken,
+            "investigator_name": inspection.investigator_name,
+            "checkin_address": inspection.checkin_address,
+        }
+        if panchayat:
+            fields_to_translate["panchayat_name"] = panchayat.name
+            fields_to_translate["panchayat_name_hindi"] = panchayat.name_hindi
+            fields_to_translate["panchayat_village"] = panchayat.village
+        if engineer:
+            fields_to_translate["engineer_name"] = engineer.name
+            fields_to_translate["engineer_name_hindi"] = engineer.name_hindi
+            fields_to_translate["engineer_designation"] = engineer.designation
+
+        for p in photos:
+            if p.caption:
+                fields_to_translate[f"photo_{p.id}_caption"] = p.caption
+
+        for a in approvals:
+            if a.remarks:
+                fields_to_translate[f"approval_{a.id}_remarks"] = a.remarks
+
+        translated_fields = await translate_fields_to_english(fields_to_translate)
+
+        # Assign translated values back to objects
+        inspection.title = translated_fields.get("title")
+        inspection.project_name = translated_fields.get("project_name")
+        inspection.observations = translated_fields.get("observations")
+        inspection.recommendations = translated_fields.get("recommendations")
+        inspection.action_taken = translated_fields.get("action_taken")
+        inspection.investigator_name = translated_fields.get("investigator_name")
+        inspection.checkin_address = translated_fields.get("checkin_address")
+
+        if panchayat:
+            panchayat.name = translated_fields.get("panchayat_name")
+            panchayat.name_hindi = translated_fields.get("panchayat_name_hindi")
+            panchayat.village = translated_fields.get("panchayat_village")
+
+        if engineer:
+            engineer.name = translated_fields.get("engineer_name")
+            engineer.name_hindi = translated_fields.get("engineer_name_hindi")
+            engineer.designation = translated_fields.get("engineer_designation")
+
+        for p in photos:
+            key = f"photo_{p.id}_caption"
+            if key in translated_fields:
+                p.caption = translated_fields[key]
+
+        for a in approvals:
+            key = f"approval_{a.id}_remarks"
+            if key in translated_fields:
+                a.remarks = translated_fields[key]
+
+        # Check if AI report draft is missing, generate it dynamically using Gemini
+        if not inspection.ai_report_draft:
+            try:
+                from app.api.routes.ai import call_gemini
+                
+                prompt = f"""Draft a highly formal and professional Gram Panchayat inspection report (Inspection Memo) in English according to the standards of the Rural Development Department.
 
 Inspection Details:
 - Inspection ID: {inspection.inspection_id}
@@ -957,50 +1090,67 @@ Draft the full English report under the following sections:
 4. **Conclusion**: Final remarks on work quality and next steps.
 
 Ensure the report is professional, grammatically correct, and written in clear technical English suitable for senior administration."""
-            
-            ai_draft = await call_gemini(prompt, language="en")
-            if ai_draft and not ai_draft.startswith("AI Error:"):
-                inspection.ai_report_draft = ai_draft
-                await db.flush()
+                
+                ai_draft = await call_gemini(prompt, language="en")
+                if ai_draft and not ai_draft.startswith("AI Error:"):
+                    inspection.ai_report_draft = ai_draft
+                    await db.flush()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to auto-generate Gemini report draft: {e}")
+
+        try:
+            build_pdf_report(inspection, panchayat, engineer, list(photos), list(approvals), output_path)
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Failed to auto-generate Gemini report draft: {e}")
+            raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
-    try:
-        build_pdf_report(inspection, panchayat, engineer, list(photos), list(approvals), output_path)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
-
-    # Save PDF report record
-    file_size_kb = Path(output_path).stat().st_size // 1024
-    report = Report(
-        inspection_id=inspection_id,
-        generated_by=current_user.id,
-        file_path=output_path,
-        file_name=file_name,
-        file_size_kb=file_size_kb,
-        report_format="pdf",
-    )
-    db.add(report)
-
-    # DOCX Generation
-    docx_file_name = f"Report_{inspection.inspection_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
-    docx_output_path = str(REPORTS_DIR / docx_file_name)
-    try:
-        build_docx_report(inspection, panchayat, engineer, list(photos), list(approvals), docx_output_path)
-        docx_file_size_kb = Path(docx_output_path).stat().st_size // 1024
-        docx_report = Report(
+        # Save PDF report record
+        file_size_kb = Path(output_path).stat().st_size // 1024
+        report = Report(
             inspection_id=inspection_id,
             generated_by=current_user.id,
-            file_path=docx_output_path,
-            file_name=docx_file_name,
-            file_size_kb=docx_file_size_kb,
-            report_format="docx",
+            file_path=output_path,
+            file_name=file_name,
+            file_size_kb=file_size_kb,
+            report_format="pdf",
         )
-        db.add(docx_report)
-    except Exception as docx_err:
-        import logging
-        logging.getLogger(__name__).error(f"DOCX generation failed: {docx_err}")
+        db.add(report)
+
+        # DOCX Generation
+        docx_file_name = f"Report_{inspection.inspection_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
+        docx_output_path = str(REPORTS_DIR / docx_file_name)
+        try:
+            build_docx_report(inspection, panchayat, engineer, list(photos), list(approvals), docx_output_path)
+            docx_file_size_kb = Path(docx_output_path).stat().st_size // 1024
+            docx_report = Report(
+                inspection_id=inspection_id,
+                generated_by=current_user.id,
+                file_path=docx_output_path,
+                file_name=docx_file_name,
+                file_size_kb=docx_file_size_kb,
+                report_format="docx",
+            )
+            db.add(docx_report)
+        except Exception as docx_err:
+            import logging
+            logging.getLogger(__name__).error(f"DOCX generation failed: {docx_err}")
+
+    finally:
+        # Restore original values
+        for k, v in orig_inspection_vals.items():
+            setattr(inspection, k, v)
+        if panchayat:
+            for k, v in orig_panchayat_vals.items():
+                setattr(panchayat, k, v)
+        if engineer:
+            for k, v in orig_engineer_vals.items():
+                setattr(engineer, k, v)
+        for p in photos:
+            if p.id in orig_photo_captions:
+                p.caption = orig_photo_captions[p.id]
+        for a in approvals:
+            if a.id in orig_approval_remarks:
+                a.remarks = orig_approval_remarks[a.id]
 
     return MessageResponse(
         message="Reports generated successfully",
