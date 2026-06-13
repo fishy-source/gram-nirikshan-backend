@@ -29,12 +29,21 @@ async def generate_inspection_id(db: AsyncSession) -> str:
     now = datetime.now(timezone.utc)
     prefix = f"GN-{now.year}{now.month:02d}-"
     result = await db.execute(
-        select(func.count(Inspection.id)).where(
-            Inspection.inspection_id.like(f"{prefix}%")
-        )
+        select(Inspection.inspection_id)
+        .where(Inspection.inspection_id.like(f"{prefix}%"))
+        .order_by(Inspection.inspection_id.desc())
+        .limit(1)
     )
-    count = result.scalar() or 0
-    return f"{prefix}{(count + 1):05d}"
+    max_id = result.scalar()
+    if max_id:
+        try:
+            last_seq = int(max_id.split("-")[-1])
+            next_seq = last_seq + 1
+        except (ValueError, IndexError):
+            next_seq = 1
+    else:
+        next_seq = 1
+    return f"{prefix}{next_seq:05d}"
 
 
 def calculate_distance(lat1, lon1, lat2, lon2) -> float:
