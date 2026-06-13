@@ -580,37 +580,15 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
             story.append(photo_table)
             story.append(Spacer(1, 0.2*cm))
 
-    # ── Signature ─────────────────────────────────────────────
-    story.append(Spacer(1, 1*cm))
-    witness_name = extract_witness_name(inspection.description)
-
-    sig_data = [
-        [Paragraph("जांचकर्ता अधिकारी के हस्ताक्षर", normal), "", Paragraph("गवाह के हस्ताक्षर", normal)],
-        ["", "", ""],
-        [Paragraph(f"नाम (Name): {engineer_name}", normal), "",
-         Paragraph(f"नाम (Name): {witness_name}", normal)],
-        [Paragraph(f"दिनांक (Date): {datetime.now().strftime('%d/%m/%Y')}", normal), "",
-         Paragraph("पता/मोबाइल: ___________________", normal)],
-        ["", "", Paragraph("दिनांक (Date): ___________________", normal)],
-    ]
-    sig_table = Table(sig_data, colWidths=[8*cm, 3*cm, 8*cm])
-    sig_table.setStyle(TableStyle([
-        ("LINEABOVE", (0, 2), (0, 2), 1, colors.black),
-        ("LINEABOVE", (2, 2), (2, 2), 1, colors.black),
-        ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
-    ]))
-    story.append(sig_table)
-
-    # ── Footer ────────────────────────────────────────────────
-    story.append(Spacer(1, 0.5*cm))
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey))
-    story.append(Paragraph(
-        f"ग्राम निरीक्षण मोबाइल ऐप द्वारा स्वचालित जनरेटेड | {datetime.now().strftime('%d/%m/%Y %H:%M')} | निरीक्षण ID: {inspection.inspection_id}",
-        ParagraphStyle("Footer", fontSize=8, fontName=pdf_font_name, alignment=TA_CENTER, textColor=colors.grey)
-    ))
-
-    doc.build(story)
-xtColor=colors.white)),
+    # ── Approval Table ─────────────────────────────────────────
+    if approvals:
+        story.append(Spacer(1, 0.3*cm))
+        story.append(Paragraph("अनुमोदन विवरण (Approval Details)", label))
+        approval_headers = [
+            Paragraph("स्तर", ParagraphStyle("H5", fontName=pdf_font_bold_name, fontSize=9, textColor=colors.white)),
+            Paragraph("अधिकारी", ParagraphStyle("H5", fontName=pdf_font_bold_name, fontSize=9, textColor=colors.white)),
+            Paragraph("स्थिति", ParagraphStyle("H5", fontName=pdf_font_bold_name, fontSize=9, textColor=colors.white)),
+            Paragraph("टिप्पणी", ParagraphStyle("H5", fontName=pdf_font_bold_name, fontSize=9, textColor=colors.white)),
             Paragraph("दिनांक (Date)", ParagraphStyle("H5", fontName=pdf_font_bold_name, fontSize=9, textColor=colors.white))
         ]
         
