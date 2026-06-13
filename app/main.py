@@ -54,6 +54,22 @@ async def lifespan(app: FastAPI):
         await create_tables()
         logger.info("Database tables created/verified.")
 
+        # Database migrations (Check and add missing columns to inspections table)
+        from app.db.database import engine
+        from sqlalchemy import text
+        async with engine.begin() as conn:
+            for col_name, col_type in [
+                ("investigator_name", "VARCHAR(200)"),
+                ("district", "VARCHAR(100)"),
+                ("block", "VARCHAR(100)"),
+                ("map_image_path", "VARCHAR(500)")
+            ]:
+                try:
+                    await conn.execute(text(f"ALTER TABLE inspections ADD COLUMN {col_name} {col_type} NULL"))
+                    logger.info(f"Successfully added column {col_name} to inspections table.")
+                except Exception as col_err:
+                    logger.warning(f"Column {col_name} could not be added (it might already exist): {col_err}")
+
         # Ensure upload directories exist
         for subdir in ["photos", "documents", "reports", "photos/thumbnails"]:
             Path(settings.UPLOAD_DIR, subdir).mkdir(parents=True, exist_ok=True)
