@@ -150,40 +150,29 @@ async def suggest_report(
     result2 = await db.execute(select(Panchayat).where(Panchayat.id == inspection.panchayat_id))
     panchayat = result2.scalar_one_or_none()
 
-    prompt = f"""उत्तर प्रदेश सरकार के ग्राम विकास विभाग के मानकों के अनुसार एक अत्यंत औपचारिक और पेशेवर ग्राम पंचायत निरीक्षण रिपोर्ट (निरीक्षण आख्या) का हिंदी में मसौदा तैयार करें।
+    prompt = f"""Draft a highly formal and professional Gram Panchayat inspection report (Inspection Memo) in English according to the standards of the Rural Development Department.
 
-निरीक्षण विवरण:
-- निरीक्षण का शीर्षक: {inspection.title}
-- ग्राम पंचायत: {panchayat.name_hindi or panchayat.name if panchayat else 'N/A'} (जनपद: {inspection.district or (panchayat.district if panchayat else 'N/A')}, विकास खंड: {inspection.block or (panchayat.block if panchayat else 'N/A')})
-- निरीक्षण प्रकार: {inspection.inspection_type or 'सामान्य'}
-- परियोजना/कार्य का नाम: {inspection.project_name or 'N/A'} (코드/संकेतांक: {inspection.project_code or 'N/A'})
-- दिनांक: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}
-- जांचकर्ता/इंजीनियर: {inspection.investigator_name or current_user.name_hindi or current_user.name} (पद: {current_user.designation or 'अवर अभियंता'})
+Inspection Details:
+- Title: {inspection.title}
+- Gram Panchayat: {panchayat.name or panchayat.name_hindi if panchayat else 'N/A'} (District: {inspection.district or (panchayat.district if panchayat else 'N/A')}, Block: {inspection.block or (panchayat.block if panchayat else 'N/A')})
+- Inspection Type: {inspection.inspection_type or 'General'}
+- Project/Work Name: {inspection.project_name or 'N/A'} (Code: {inspection.project_code or 'N/A'})
+- Date: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}
+- Inspector/Engineer: {inspection.investigator_name or current_user.name or current_user.name_hindi} (Designation: {current_user.designation or 'Junior Engineer'})
 
-निरीक्षण के मुख्य बिंदु (Observations / Notes):
-{inspection.observations or 'स्थल निरीक्षण किया गया।'}
+Observations / Notes:
+{inspection.observations or 'Site inspection conducted.'}
 {inspection.description or ''}
 
-निम्नलिखित शीर्षकों के अंतर्गत पूर्ण हिंदी रिपोर्ट तैयार करें (कोई अंग्रेजी शब्द या अंग्रेजी/हिंदी का मिश्रण न हो, भाषा विशुद्ध प्रशासनिक/सरकारी राजभाषा हिंदी होनी चाहिए):
+Draft the full English report under the following sections:
+1. **Work Description & Key Findings (What was good)**: Details of the site inspection, work progress, and positive findings.
+2. **Deficiencies / Issues Identified (What was lacking)**: Technical, quality-related, or administrative deficiencies observed during the inspection.
+3. **Corrective Actions / Recommendations (What can be resolved)**: Necessary corrective actions and recommendations to resolve the identified deficiencies.
+4. **Conclusion**: Final remarks on work quality and next steps.
 
-1. **कार्य का विवरण व निरीक्षण में क्या पाया गया (क्या अच्छा था)**: कार्य स्थल पर किए गए निरीक्षण का विवरण, कार्य की प्रगति और क्या सकारात्मक/अच्छा पाया गया।
-2. **पाई गई कमियां (क्या कमियां थीं)**: निरीक्षण के दौरान पाई गई तकनीकी, गुणवत्ता संबंधी या प्रशासनिक कमियां।
-3. **कमियों के सुधार हेतु सुझाव व उपाय (क्या निदान किया जा सकता है)**: पाई गई कमियों को दूर करने के लिए किए जाने वाले आवश्यक सुधार कार्य और निदान।
-4. **निष्कर्ष (Conclusion)**: कार्य की गुणवत्ता पर अंतिम टिप्पणी और अग्रिम कार्रवाई हेतु निष्कर्ष।
+Ensure the report is professional, grammatically correct, and written in clear technical English suitable for senior administration."""
 
-रिपोर्ट तैयार करते समय निम्नलिखित 10 अनिवार्य नियमों का पूर्णतः पालन करें:
-1. हमेशा शुद्ध, व्याकरणिक और मानक हिंदी में ही रिपोर्ट लिखें।
-2. वर्तनी (Spelling), मात्रा, विराम चिह्न और व्याकरण में कोई गलती न करें।
-3. रिपोर्ट की भाषा सरल, स्पष्ट और सभी के लिए समझने योग्य हो।
-4. अंग्रेज़ी शब्दों का प्रयोग केवल तभी करें जब उनका सामान्य हिंदी विकल्प उपलब्ध न हो।
-5. इनपुट विवरण में हिंग्लिश या मिश्रित भाषा होने पर भी अंतिम रिपोर्ट विशुद्ध और मानक हिंदी में ही बनाएं।
-6. आख्या पूर्ण करने से पहले उसकी वर्तनी और व्याकरण की स्वयं जाँच करें।
-7. कठिन शब्दों के स्थान पर सामान्य प्रचलित हिंदी शब्दों का उपयोग करें।
-8. सभी संख्याएँ और माप स्पष्ट रूप से लिखें।
-9. रिपोर्ट में अनावश्यक अंग्रेज़ी, हिंग्लिश या रोमन हिंदी का प्रयोग न करें।
-10. यदि किसी शब्द की वर्तनी संदिग्ध हो, तो सबसे अधिक प्रचलित और मानक हिंदी वर्तनी का उपयोग करें।"""
-
-    response = await call_gemini(prompt, "hi")
+    response = await call_gemini(prompt, "en")
 
     # Store AI draft
     inspection.ai_report_draft = response
