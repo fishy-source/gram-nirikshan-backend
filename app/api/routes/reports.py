@@ -246,8 +246,8 @@ def to_pdf_html(text: str, bold: bool = False) -> str:
             kd_text = Unicode_to_KrutiDev(s)
             escaped_kd = kd_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br/>').replace('\r', '')
             font = 'KrutiDev-Bold' if bold else 'KrutiDev'
-            # Kruti Dev font glyphs are smaller than Helvetica, so we scale it up to size 11.5 for visual balance
-            html_parts.append(f'<font name="{font}" size="11.5">{escaped_kd}</font>')
+            # Kruti Dev font glyphs are smaller than Helvetica, so we scale it up to size 10.5 for visual balance
+            html_parts.append(f'<font name="{font}" size="10.5">{escaped_kd}</font>')
         else:
             escaped_s = s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br/>').replace('\r', '')
             font = 'Helvetica-Bold' if bold else 'Helvetica'
@@ -494,7 +494,9 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
         p_space4.paragraph_format.space_after = Pt(12)
         
     # Signatures
-    witness_name = extract_witness_name(inspection.description)
+    witness_name = extract_witness_name(inspection.action_taken)
+    if witness_name == "___________________":
+        witness_name = extract_witness_name(inspection.description)
     
     p_sig_space = doc.add_paragraph()
     p_sig_space.paragraph_format.space_before = Pt(24)
@@ -538,20 +540,25 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
     story = []
 
     # ── Header ────────────────────────────────────────────────
-    title_style = ParagraphStyle(
-        "Title", fontSize=18, textColor=PRIMARY,
-        alignment=TA_CENTER, fontName='Helvetica-Bold', spaceAfter=4
+    title_24 = ParagraphStyle(
+        "Title24", fontSize=24, textColor=PRIMARY,
+        alignment=TA_CENTER, fontName='Helvetica-Bold', spaceAfter=2
     )
-    subtitle_style = ParagraphStyle(
-        "Subtitle", fontSize=11, textColor=SECONDARY,
-        alignment=TA_CENTER, fontName='Helvetica', spaceAfter=2
+    title_22 = ParagraphStyle(
+        "Title22", fontSize=22, textColor=SECONDARY,
+        alignment=TA_CENTER, fontName='Helvetica-Bold', spaceAfter=2
     )
-    normal = ParagraphStyle("Normal2", fontSize=10, fontName='Helvetica', spaceAfter=4)
-    label = ParagraphStyle("Label", fontSize=10, fontName='Helvetica-Bold', textColor=PRIMARY)
+    title_18 = ParagraphStyle(
+        "Title18", fontSize=18, textColor=colors.black,
+        alignment=TA_CENTER, fontName='Helvetica-Bold', spaceAfter=8
+    )
+    normal = ParagraphStyle("Normal2", fontSize=9, fontName='Helvetica', leading=11, spaceAfter=2)
+    label = ParagraphStyle("Label", fontSize=9, fontName='Helvetica-Bold', textColor=PRIMARY, spaceBefore=4, spaceAfter=2)
 
-    story.append(Paragraph(to_pdf_html("निरीक्षण रिपोर्ट (INSPECTION REPORT)", bold=True), title_style))
-    story.append(Paragraph(to_pdf_html(f"निरीक्षण संख्या (Inspection ID): {inspection.inspection_id}"), subtitle_style))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=PRIMARY, spaceAfter=12))
+    story.append(Paragraph(to_pdf_html("INSPECTION REPORT", bold=True), title_24))
+    story.append(Paragraph(to_pdf_html("निरीक्षण रिपोर्ट", bold=True), title_22))
+    story.append(Paragraph(to_pdf_html(f"निरीक्षण संख्या (Inspection ID): {inspection.inspection_id}"), title_18))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=PRIMARY, spaceBefore=2, spaceAfter=6))
 
     # ── Basic Information ──────────────────────────────────────
     engineer_name = inspection.investigator_name or (engineer.name_hindi or engineer.name if engineer else "N/A")
@@ -576,11 +583,11 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
         ("BACKGROUND", (2, 0), (2, -1), LIGHT_BG),
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("PADDING", (0, 0), (-1, -1), 6),
+        ("PADDING", (0, 0), (-1, -1), 4),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
     story.append(info_table)
-    story.append(Spacer(1, 0.3*cm))
+    story.append(Spacer(1, 0.15*cm))
 
     # ── GPS Information ────────────────────────────────────────
     if inspection.checkin_latitude:
@@ -598,21 +605,21 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
             ("BACKGROUND", (2, 0), (2, -1), LIGHT_BG),
             ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("PADDING", (0, 0), (-1, -1), 6),
+            ("PADDING", (0, 0), (-1, -1), 4),
             ("SPAN", (1, 2), (3, 2)),
         ]))
         story.append(gps_table)
-        story.append(Spacer(1, 0.3*cm))
+        story.append(Spacer(1, 0.15*cm))
 
     # ── Map Attachment ─────────────────────────────────────────
     if inspection.map_image_path:
         map_file_path = get_absolute_path(inspection.map_image_path)
         if map_file_path.exists():
             story.append(Paragraph(to_pdf_html("निरीक्षण स्थान मानचित्र (Inspection Location Map)", bold=True), label))
-            story.append(Spacer(1, 0.2*cm))
+            story.append(Spacer(1, 0.1*cm))
             try:
-                img = RLImage(str(map_file_path), width=16*cm, height=9*cm)
-                story.append(KeepTogether([img, Spacer(1, 0.3*cm)]))
+                img = RLImage(str(map_file_path), width=15*cm, height=6.5*cm)
+                story.append(KeepTogether([img, Spacer(1, 0.15*cm)]))
             except Exception as e:
                 story.append(Paragraph(to_pdf_html(f"मानचित्र छवि लोड करने में विफल: {str(e)}"), normal))
 
@@ -625,12 +632,12 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
         if content:
             story.append(Paragraph(to_pdf_html(section_title, bold=True), label))
             story.append(Paragraph(to_pdf_html(content), normal))
-            story.append(Spacer(1, 0.3*cm))
+            story.append(Spacer(1, 0.15*cm))
 
     # ── AI Report Draft ────────────────────────────────────────
     if inspection.ai_report_draft:
         story.append(Paragraph(to_pdf_html("विस्तृत निरीक्षण आख्या - एआई आलेख (Detailed AI Report Draft)", bold=True), label))
-        story.append(Spacer(1, 0.2*cm))
+        story.append(Spacer(1, 0.1*cm))
         ai_lines = inspection.ai_report_draft.split('\n')
         for line in ai_lines:
             if line.strip():
@@ -639,8 +646,8 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
                 clean_line = line.strip().replace('**', '').replace('###', '').replace('##', '').replace('*', '').strip()
                 story.append(Paragraph(to_pdf_html(clean_line, bold=is_bold), normal))
             else:
-                story.append(Spacer(1, 0.15*cm))
-        story.append(Spacer(1, 0.3*cm))
+                story.append(Spacer(1, 0.05*cm))
+        story.append(Spacer(1, 0.15*cm))
 
     # ── Photos ────────────────────────────────────────────────
     valid_photos = []
@@ -653,14 +660,14 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
     if valid_photos:
         story.append(HRFlowable(width="100%", thickness=1, color=SECONDARY, spaceBefore=8, spaceAfter=8))
         story.append(Paragraph(to_pdf_html("निरीक्षण स्थल के छायाचित्र (Inspection Photographs)", bold=True), label))
-        story.append(Spacer(1, 0.2*cm))
+        story.append(Spacer(1, 0.1*cm))
 
         for i in range(0, len(valid_photos), 2):
             row_photos = valid_photos[i:i+2]
             row_data = []
             for photo, abs_p in row_photos:
                 try:
-                    img = RLImage(str(abs_p), width=8*cm, height=6*cm)
+                    img = RLImage(str(abs_p), width=8*cm, height=4.5*cm)
                     caption = f"{photo.caption or 'स्थल छायाचित्र'}\n{str(photo.captured_at)[:16] if photo.captured_at else ''}"
                     cell = [img, Paragraph(to_pdf_html(caption), ParagraphStyle("Cap", fontSize=8, fontName='Helvetica', alignment=TA_CENTER))]
                 except Exception as ex:
@@ -674,15 +681,15 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
             photo_table.setStyle(TableStyle([
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("PADDING", (0, 0), (-1, -1), 5),
+                ("PADDING", (0, 0), (-1, -1), 3),
                 ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
             ]))
             story.append(photo_table)
-            story.append(Spacer(1, 0.2*cm))
+            story.append(Spacer(1, 0.1*cm))
 
     # ── Approval Table ─────────────────────────────────────────
     if approvals:
-        story.append(Spacer(1, 0.3*cm))
+        story.append(Spacer(1, 0.15*cm))
         story.append(Paragraph(to_pdf_html("अनुमोदन विवरण (Approval Details)", bold=True), label))
         approval_headers = [
             Paragraph(to_pdf_html("स्तर", bold=True), ParagraphStyle("H5", fontName='Helvetica-Bold', fontSize=9, textColor=colors.white)),
@@ -712,14 +719,16 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
             ("BACKGROUND", (0, 0), (-1, 0), DARK_BG),
             ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("PADDING", (0, 0), (-1, -1), 5),
+            ("PADDING", (0, 0), (-1, -1), 3),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT_BG]),
         ]))
         story.append(approval_table)
 
     # ── Signature ─────────────────────────────────────────────
-    story.append(Spacer(1, 1*cm))
-    witness_name = extract_witness_name(inspection.description)
+    story.append(Spacer(1, 0.3*cm))
+    witness_name = extract_witness_name(inspection.action_taken)
+    if witness_name == "___________________":
+        witness_name = extract_witness_name(inspection.description)
     engineer_designation = engineer.designation or "अवर अभियंता" if engineer else "N/A"
 
     sig_data = [
@@ -741,7 +750,7 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
     story.append(sig_table)
 
     # ── Footer ────────────────────────────────────────────────
-    story.append(Spacer(1, 0.5*cm))
+    story.append(Spacer(1, 0.15*cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey))
     story.append(Paragraph(
         to_pdf_html(f"ग्राम निरीक्षण मोबाइल ऐप द्वारा स्वचालित जनरेटेड | {datetime.now().strftime('%d/%m/%Y %H:%M')} | निरीक्षण ID: {inspection.inspection_id}"),
