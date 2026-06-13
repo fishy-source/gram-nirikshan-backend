@@ -24,12 +24,14 @@ class InspectionDetailScreen extends StatefulWidget {
 class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late TextEditingController _remarksCtrl;
   bool _gpsLoading = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _remarksCtrl = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<InspectionProvider>().loadInspectionDetail(widget.inspectionId);
       context.read<InspectionProvider>().loadApprovalHistory(widget.inspectionId);
@@ -39,6 +41,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _remarksCtrl.dispose();
     super.dispose();
   }
 
@@ -500,7 +503,6 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   }
 
   Widget _buildApprovalActions(InspectionModel inspection, InspectionProvider provider) {
-    final remarksCtrl = TextEditingController();
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
@@ -511,21 +513,21 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           Text(context.tr('approval_action'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor)),
           const SizedBox(height: 16),
           TextField(
-            controller: remarksCtrl,
+            controller: _remarksCtrl,
             maxLines: 3,
             decoration: InputDecoration(hintText: context.tr('enter_remarks_optional'), labelText: context.tr('remarks')),
           ),
           const SizedBox(height: 16),
           Row(children: [
             Expanded(child: ElevatedButton.icon(
-              onPressed: () => provider.approveInspection(inspection.id, 'approved', remarksCtrl.text, null),
+              onPressed: () => _handleApprovalAction(inspection.id, 'approved', _remarksCtrl.text, provider),
               icon: const Icon(Icons.check_rounded),
               label: Text(context.tr('approve')),
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
             )),
             const SizedBox(width: 12),
             Expanded(child: OutlinedButton.icon(
-              onPressed: () => provider.approveInspection(inspection.id, 'rejected', remarksCtrl.text, null),
+              onPressed: () => _handleApprovalAction(inspection.id, 'rejected', _remarksCtrl.text, provider),
               icon: const Icon(Icons.close_rounded),
               label: Text(context.tr('reject')),
               style: OutlinedButton.styleFrom(foregroundColor: AppTheme.errorColor, side: const BorderSide(color: AppTheme.errorColor)),
@@ -533,13 +535,40 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           ]),
           const SizedBox(height: 8),
           SizedBox(width: double.infinity, child: OutlinedButton.icon(
-            onPressed: () => provider.approveInspection(inspection.id, 'forwarded', remarksCtrl.text, null),
+            onPressed: () => _handleApprovalAction(inspection.id, 'forwarded', _remarksCtrl.text, provider),
             icon: const Icon(Icons.forward_rounded),
             label: Text(context.tr('forward')),
           )),
         ],
       ),
     );
+  }
+
+  Future<void> _handleApprovalAction(String id, String action, String remarks, InspectionProvider provider) async {
+    final success = await provider.approveInspection(id, action, remarks, null);
+    if (mounted) {
+      final isHindi = context.read<LanguageProvider>().isHindi;
+      String msg = "";
+      if (success) {
+        _remarksCtrl.clear();
+        if (action == 'approved') {
+          msg = isHindi ? "✅ निरीक्षण स्वीकृत (Approved) कर दिया गया है।" : "✅ Inspection approved successfully.";
+        } else if (action == 'rejected') {
+          msg = isHindi ? "❌ निरीक्षण अस्वीकृत (Rejected) कर दिया गया है।" : "❌ Inspection rejected.";
+        } else {
+          msg = isHindi ? "➡️ निरीक्षण अगले स्तर पर अग्रेषित (Forwarded) कर दिया गया है।" : "➡️ Inspection forwarded successfully.";
+        }
+      } else {
+        msg = isHindi ? "⚠️ कार्रवाई विफल रही। कृपया पुनः प्रयास करें।" : "⚠️ Action failed. Please try again.";
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: success ? AppTheme.successColor : AppTheme.errorColor,
+        ),
+      );
+    }
   }
 
   Widget _buildBottomActions(InspectionModel inspection, InspectionProvider provider, UserModel? user) {
@@ -550,7 +579,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, -2))],
       ),
       child: Row(children: [
-        if (inspection.isDraft && user?.isJE == true) ...[
+        if (inspection.isDraft && (user?.isJE == true || user?.isAdmin == true)) ...[
           Expanded(child: ElevatedButton.icon(
             onPressed: () => _handleSubmit(inspection, provider),
             icon: const Icon(Icons.send_rounded, size: 18),
