@@ -48,19 +48,25 @@ LIGHT_BG = colors.HexColor("#eaf2fb")
 DARK_BG = colors.HexColor("#154360")
 
 
+def find_project_root() -> Path:
+    current = Path(__file__).resolve().parent
+    for _ in range(5):
+        if (current / "flutter_app").exists():
+            return current
+        current = current.parent
+    return Path(__file__).parents[3]
+
+
 def get_absolute_path(rel_path: str) -> Path:
     """Find absolute path of a file, searching workspace directories."""
     path = Path(rel_path)
     if path.exists():
         return path
-    # Try relative to backend root
-    backend_root = Path(__file__).parents[3]
-    path2 = backend_root / rel_path
+    root = find_project_root()
+    path2 = root / rel_path
     if path2.exists():
         return path2
-    # Try relative to gram_nirikshan root
-    root = Path(__file__).parents[4]
-    path3 = root / rel_path
+    path3 = root / "backend" / rel_path
     if path3.exists():
         return path3
     return path
@@ -71,8 +77,9 @@ pdf_font_name = 'Helvetica'
 pdf_font_bold_name = 'Helvetica-Bold'
 
 try:
-    flutter_font_dir = Path(__file__).parents[4] / "flutter_app" / "assets" / "fonts"
-    backend_font_dir = Path(__file__).parents[3] / "assets" / "fonts"
+    root = find_project_root()
+    flutter_font_dir = root / "flutter_app" / "assets" / "fonts"
+    backend_font_dir = root / "assets" / "fonts"
     backend_font_dir.mkdir(parents=True, exist_ok=True)
 
     for font_name in ["Poppins-Regular.ttf", "Poppins-Bold.ttf"]:
