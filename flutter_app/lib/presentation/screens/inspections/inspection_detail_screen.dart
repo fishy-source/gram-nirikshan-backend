@@ -626,10 +626,21 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         ...rows.map((r) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Icon(r.icon, size: 16, color: Colors.grey),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(r.icon, size: 16, color: Colors.grey),
+            ),
             const SizedBox(width: 8),
-            Text('${r.label}: ', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-            Expanded(child: Text(r.value, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13))),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(r.label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  const SizedBox(height: 2),
+                  Text(r.value, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                ],
+              ),
+            ),
           ]),
         )),
       ]),
