@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm, inch
@@ -238,7 +239,11 @@ async def generate_report(
     result4 = await db.execute(select(Photo).where(Photo.inspection_id == inspection_id))
     photos = result4.scalars().all()
 
-    result5 = await db.execute(select(Approval).where(Approval.inspection_id == inspection_id))
+    result5 = await db.execute(
+        select(Approval)
+        .where(Approval.inspection_id == inspection_id)
+        .options(selectinload(Approval.approver))
+    )
     approvals = result5.scalars().all()
 
     file_name = f"Report_{inspection.inspection_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"

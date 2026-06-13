@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm, inch
@@ -19,7 +20,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from pathlib import Path
 from datetime import datetime, timezone
-import uuid, os
+import uuid, os, shutil
 
 from app.db.database import get_db
 from app.models.models import Inspection, Panchayat, User, Photo, Approval, Report
@@ -40,6 +41,56 @@ LIGHT_BG = colors.HexColor("#eaf2fb")
 DARK_BG = colors.HexColor("#154360")
 
 
+def get_absolute_path(rel_path: str) -> Path:
+    """Find absolute path of a file, searching workspace directories."""
+    path = Path(rel_path)
+    if path.exists():
+        return path
+    # Try relative to backend root
+    backend_root = Path(__file__).parents[3]
+    path2 = backend_root / rel_path
+    if path2.exists():
+        return path2
+    # Try relative to gram_nirikshan root
+    root = Path(__file__).parents[4]
+    path3 = root / rel_path
+    if path3.exists():
+        return path3
+    return path
+
+
+# Register Poppins Hindi Unicode font
+try:
+    flutter_font_dir = Path(__file__).parents[4] / "flutter_app" / "assets" / "fonts"
+    backend_font_dir = Path(__file__).parents[3] / "assets" / "fonts"
+    backend_font_dir.mkdir(parents=True, exist_ok=True)
+
+    for font_name in ["Poppins-Regular.ttf", "Poppins-Bold.ttf"]:
+        src = flutter_font_dir / font_name
+        dst = backend_font_dir / font_name
+        if src.exists() and not dst.exists():
+            shutil.copy(src, dst)
+
+    font_path_regular = backend_font_dir / "Poppins-Regular.ttf"
+    font_path_bold = backend_font_dir / "Poppins-Bold.ttf"
+
+    if font_path_regular.exists():
+        pdfmetrics.registerFont(TTFont('Poppins', str(font_path_regular)))
+        pdf_font_name = 'Poppins'
+    else:
+        pdf_font_name = 'Helvetica'
+
+    if font_path_bold.exists():
+        pdfmetrics.registerFont(TTFont('Poppins-Bold', str(font_path_bold)))
+        pdf_font_bold_name = 'Poppins-Bold'
+    else:
+        pdf_font_bold_name = 'Helvetica-Bold'
+except Exception as e:
+    print(f"Error copying/registering Poppins fonts: {e}")
+    pdf_font_name = 'Helvetica'
+    pdf_font_bold_name = 'Helvetica-Bold'
+
+
 def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_path: str):
     """Build a full PDF inspection report."""
     doc = SimpleDocTemplate(
@@ -55,37 +106,45 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
     # ── Header ────────────────────────────────────────────────
     title_style = ParagraphStyle(
         "Title", fontSize=18, textColor=PRIMARY,
-        alignment=TA_CENTER, fontName="Helvetica-Bold", spaceAfter=4
+        alignment=TA_CENTER, fontName=pdf_font_bold_name, spaceAfter=4
     )
     subtitle_style = ParagraphStyle(
         "Subtitle", fontSize=11, textColor=SECONDARY,
-        alignment=TA_CENTER, fontName="Helvetica", spaceAfter=2
+        alignment=TA_CENTER, fontName=pdf_font_name, spaceAfter=2
     )
-    normal = ParagraphStyle("Normal2", fontSize=10, fontName="Helvetica", spaceAfter=4)
-    label = ParagraphStyle("Label", fontSize=10, fontName="Helvetica-Bold", textColor=PRIMARY)
+    normal = ParagraphStyle("Normal2", fontSize=10, fontName=pdf_font_name, spaceAfter=4)
+    label = ParagraphStyle("Label", fontSize=10, fontName=pdf_font_bold_name, textColor=PRIMARY)
 
-    story.append(Paragraph(settings.DEPARTMENT_NAME_EN, title_style))
-    story.append(Paragraph("INSPECTION REPORT", subtitle_style))
-    story.append(Paragraph(f"Report ID: {inspection.inspection_id}", subtitle_style))
+    dept_name = settings.DEPARTMENT_NAME or "ग्राम विकास विभाग, उत्तर प्रदेश"
+    story.append(Paragraph(dept_name, title_style))
+    story.append(Paragraph("निरीक्षण रिपोर्ट (INSPECTION REPORT)", subtitle_style))
+    story.append(Paragraph(f"रिपोर्ट संख्या (Report ID): {inspection.inspection_id}", subtitle_style))
     story.append(HRFlowable(width="100%", thickness=2, color=PRIMARY, spaceAfter=12))
 
     # ── Basic Information ──────────────────────────────────────
+    engineer_name = inspection.investigator_name or (engineer.name_hindi or engineer.name if engineer else "N/A")
+    dist = inspection.district or (panchayat.district if panchayat else "N/A")
+    blk = inspection.block or (panchayat.block if panchayat else "N/A")
+
     info_data = [
-        ["Inspection ID", inspection.inspection_id, "Status", inspection.status.value.upper()],
-        ["Engineer", engineer.name if engineer else "N/A", "Designation", engineer.designation or "N/A"],
-        ["Panchayat", panchayat.name if panchayat else "N/A", "District", panchayat.district if panchayat else "N/A"],
-        ["Block", panchayat.block if panchayat else "N/A", "Village", panchayat.village or "N/A"],
-        ["Inspection Date", str(inspection.inspection_date)[:10] if inspection.inspection_date else "N/A",
-         "Report Date", datetime.now(timezone.utc).strftime("%d/%m/%Y")],
-        ["Project Name", inspection.project_name or "N/A", "Project Code", inspection.project_code or "N/A"],
+        [Paragraph("निरीक्षण संख्या (ID)", normal), Paragraph(inspection.inspection_id, normal), 
+         Paragraph("स्थिति (Status)", normal), Paragraph(inspection.status.value.upper(), normal)],
+        [Paragraph("जांचकर्ता (Inspector)", normal), Paragraph(engineer_name, normal), 
+         Paragraph("पद (Designation)", normal), Paragraph(engineer.designation or "अवर अभियंता" if engineer else "N/A", normal)],
+        [Paragraph("ग्राम पंचायत", normal), Paragraph(panchayat.name_hindi or panchayat.name if panchayat else "N/A", normal), 
+         Paragraph("जनपद (District)", normal), Paragraph(dist, normal)],
+        [Paragraph("विकास खंड (Block)", normal), Paragraph(blk, normal), 
+         Paragraph("ग्राम (Village)", normal), Paragraph(panchayat.village or "N/A" if panchayat else "N/A", normal)],
+        [Paragraph("निरीक्षण तिथि", normal), Paragraph(str(inspection.inspection_date)[:10] if inspection.inspection_date else "N/A", normal),
+         Paragraph("रिपोर्ट तिथि", normal), Paragraph(datetime.now(timezone.utc).strftime("%d/%m/%Y"), normal)],
+        [Paragraph("परियोजना का नाम", normal), Paragraph(inspection.project_name or "N/A", normal), 
+         Paragraph("कार्य कोड (Code)", normal), Paragraph(inspection.project_code or "N/A", normal)],
     ]
 
     info_table = Table(info_data, colWidths=[4*cm, 5.5*cm, 4*cm, 5.5*cm])
     info_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (0, -1), LIGHT_BG),
         ("BACKGROUND", (2, 0), (2, -1), LIGHT_BG),
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
         ("PADDING", (0, 0), (-1, -1), 6),
@@ -96,21 +155,19 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
 
     # ── GPS Information ────────────────────────────────────────
     if inspection.checkin_latitude:
-        story.append(Paragraph("GPS Check-in/Check-out Details", label))
+        story.append(Paragraph("जीपीएस विवरण (GPS Check-in/Check-out Details)", label))
         gps_data = [
-            ["Check-In Time", str(inspection.checkin_time)[:16] if inspection.checkin_time else "N/A",
-             "Check-In GPS", f"{inspection.checkin_latitude:.6f}, {inspection.checkin_longitude:.6f}"],
-            ["Check-Out Time", str(inspection.checkout_time)[:16] if inspection.checkout_time else "N/A",
-             "Check-Out GPS", f"{inspection.checkout_latitude:.6f}, {inspection.checkout_longitude:.6f}" if inspection.checkout_latitude else "N/A"],
-            ["Distance Covered", f"{inspection.distance_covered_km:.2f} km" if inspection.distance_covered_km else "N/A",
-             "Check-In Address", inspection.checkin_address or "N/A"],
+            [Paragraph("चेक-इन समय", normal), Paragraph(str(inspection.checkin_time)[:16] if inspection.checkin_time else "N/A", normal),
+             Paragraph("चेक-इन जीपीएस", normal), Paragraph(f"{inspection.checkin_latitude:.6f}, {inspection.checkin_longitude:.6f}", normal)],
+            [Paragraph("चेक-आउट समय", normal), Paragraph(str(inspection.checkout_time)[:16] if inspection.checkout_time else "N/A", normal),
+             Paragraph("चेक-आउट जीपीएस", normal), Paragraph(f"{inspection.checkout_latitude:.6f}, {inspection.checkout_longitude:.6f}" if inspection.checkout_latitude else "N/A", normal)],
+            [Paragraph("दूरी (Distance)", normal), Paragraph(f"{inspection.distance_covered_km:.2f} किमी" if inspection.distance_covered_km else "N/A", normal),
+             Paragraph("चेक-इन स्थान", normal), Paragraph(inspection.checkin_address or "N/A", normal)],
         ]
         gps_table = Table(gps_data, colWidths=[4*cm, 5.5*cm, 4*cm, 5.5*cm])
         gps_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (0, -1), LIGHT_BG),
             ("BACKGROUND", (2, 0), (2, -1), LIGHT_BG),
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
             ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
             ("PADDING", (0, 0), (-1, -1), 6),
@@ -118,36 +175,54 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
         story.append(gps_table)
         story.append(Spacer(1, 0.3*cm))
 
+    # ── Map Attachment ─────────────────────────────────────────
+    if inspection.map_image_path:
+        map_file_path = get_absolute_path(inspection.map_image_path)
+        if map_file_path.exists():
+            story.append(Paragraph("निरीक्षण स्थान मानचित्र (Inspection Location Map)", label))
+            story.append(Spacer(1, 0.2*cm))
+            try:
+                img = RLImage(str(map_file_path), width=16*cm, height=9*cm)
+                story.append(KeepTogether([img, Spacer(1, 0.3*cm)]))
+            except Exception as e:
+                story.append(Paragraph(f"मानचित्र छवि लोड करने में विफल: {str(e)}", normal))
+
     # ── Observations ──────────────────────────────────────────
     for section_title, content in [
-        ("Observations", inspection.observations),
-        ("Recommendations", inspection.recommendations),
-        ("Action Taken", inspection.action_taken),
-        ("AI Suggested Report Draft (AI द्वारा सुझाया गया मसौदा)", inspection.ai_report_draft),
+        ("मुख्य अवलोकन / कमियां (Observations)", inspection.observations),
+        ("सुझाव व संस्तुतियां (Recommendations)", inspection.recommendations),
+        ("की गई कार्रवाई (Action Taken)", inspection.action_taken),
+        ("विभागीय मसौदा रिपोर्ट (AI Suggested Report)", inspection.ai_report_draft),
     ]:
         if content:
             story.append(Paragraph(section_title, label))
             story.append(Paragraph(content, normal))
-            story.append(Spacer(1, 0.2*cm))
+            story.append(Spacer(1, 0.3*cm))
 
     # ── Photos ────────────────────────────────────────────────
-    valid_photos = [p for p in photos if p.file_path and Path(p.file_path).exists()]
+    valid_photos = []
+    for p in photos:
+        if p.file_path:
+            abs_p = get_absolute_path(p.file_path)
+            if abs_p.exists():
+                valid_photos.append((p, abs_p))
+
     if valid_photos:
         story.append(HRFlowable(width="100%", thickness=1, color=SECONDARY, spaceBefore=8, spaceAfter=8))
-        story.append(Paragraph("Inspection Photographs", label))
+        story.append(Paragraph("निरीक्षण स्थल के छायाचित्र (Inspection Photographs)", label))
         story.append(Spacer(1, 0.2*cm))
 
         # 2 photos per row
         for i in range(0, len(valid_photos), 2):
             row_photos = valid_photos[i:i+2]
             row_data = []
-            for photo in row_photos:
+            for photo, abs_p in row_photos:
                 try:
-                    img = RLImage(photo.file_path, width=8*cm, height=6*cm)
-                    caption = f"{photo.caption or 'Photo'}\n{str(photo.captured_at)[:16] if photo.captured_at else ''}"
-                    cell = [img, Paragraph(caption, ParagraphStyle("Cap", fontSize=8, alignment=TA_CENTER))]
-                except:
-                    cell = [Paragraph("Photo unavailable", normal)]
+                    img = RLImage(str(abs_p), width=8*cm, height=6*cm)
+                    caption = f"{photo.caption or 'स्थल छायाचित्र'}\n{str(photo.captured_at)[:16] if photo.captured_at else ''}"
+                    cell = [img, Paragraph(caption, ParagraphStyle("Cap", fontSize=8, fontName=pdf_font_name, alignment=TA_CENTER))]
+                except Exception as ex:
+                    cell = [Paragraph(f"छायाचित्र लोड करने में विफल: {ex}", normal)]
                 row_data.append(cell)
 
             if len(row_data) == 1:
@@ -166,21 +241,34 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
     # ── Approval Trail ────────────────────────────────────────
     if approvals:
         story.append(HRFlowable(width="100%", thickness=1, color=SECONDARY, spaceBefore=8, spaceAfter=8))
-        story.append(Paragraph("Approval Trail", label))
-        approval_data = [["Level", "Approver", "Action", "Remarks", "Date"]]
+        story.append(Paragraph("कार्यप्रवाह एवं अनुमोदन इतिहास (Approval Trail)", label))
+        story.append(Spacer(1, 0.2*cm))
+        
+        approval_headers = [
+            Paragraph("स्तर (Level)", ParagraphStyle("H1", fontName=pdf_font_bold_name, fontSize=9, textColor=colors.white)),
+            Paragraph("अधिकारी (Approver)", ParagraphStyle("H2", fontName=pdf_font_bold_name, fontSize=9, textColor=colors.white)),
+            Paragraph("कार्रवाई (Action)", ParagraphStyle("H3", fontName=pdf_font_bold_name, fontSize=9, textColor=colors.white)),
+            Paragraph("टिप्पणी (Remarks)", ParagraphStyle("H4", fontName=pdf_font_bold_name, fontSize=9, textColor=colors.white)),
+            Paragraph("दिनांक (Date)", ParagraphStyle("H5", fontName=pdf_font_bold_name, fontSize=9, textColor=colors.white))
+        ]
+        
+        approval_data = [approval_headers]
         for a in approvals:
+            app_name = a.approver.name_hindi or a.approver.name if a.approver else "N/A"
+            desig = a.approver.designation or "अधिकारी" if a.approver else ""
+            act_labels = {"pending": "लंबित", "approved": "स्वीकृत", "rejected": "अस्वीकृत", "forwarded": "अग्रेषित"}
+            action_hindi = act_labels.get(a.action.value.lower(), a.action.value.upper())
+            
             approval_data.append([
-                a.level,
-                a.approver.name if a.approver else "N/A",
-                a.action.value.upper(),
-                a.remarks or "-",
-                str(a.created_at)[:16],
+                Paragraph(a.level, normal),
+                Paragraph(f"{app_name} ({desig})", normal),
+                Paragraph(action_hindi, normal),
+                Paragraph(a.remarks or "-", normal),
+                Paragraph(str(a.created_at)[:16], normal),
             ])
-        approval_table = Table(approval_data, colWidths=[2*cm, 4*cm, 3*cm, 6*cm, 4*cm])
+        approval_table = Table(approval_data, colWidths=[2*cm, 4.5*cm, 2.5*cm, 6*cm, 3*cm])
         approval_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), DARK_BG),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
             ("PADDING", (0, 0), (-1, -1), 5),
@@ -191,12 +279,12 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
     # ── Signature ─────────────────────────────────────────────
     story.append(Spacer(1, 1*cm))
     sig_data = [
-        [Paragraph("Engineer Signature", normal), "", Paragraph("Supervisor Signature", normal)],
+        [Paragraph("जांचकर्ता अधिकारी के हस्ताक्षर", normal), "", Paragraph("समीक्षा अधिकारी के हस्ताक्षर", normal)],
         ["", "", ""],
-        [Paragraph(f"Name: {engineer.name if engineer else 'N/A'}", normal), "",
-         Paragraph("Name: ___________________", normal)],
-        [Paragraph(f"Date: {datetime.now().strftime('%d/%m/%Y')}", normal), "",
-         Paragraph("Date: ___________________", normal)],
+        [Paragraph(f"नाम (Name): {engineer_name}", normal), "",
+         Paragraph("नाम (Name): ___________________", normal)],
+        [Paragraph(f"दिनांक (Date): {datetime.now().strftime('%d/%m/%Y')}", normal), "",
+         Paragraph("दिनांक (Date): ___________________", normal)],
     ]
     sig_table = Table(sig_data, colWidths=[8*cm, 3*cm, 8*cm])
     sig_table.setStyle(TableStyle([
@@ -210,8 +298,8 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
     story.append(Spacer(1, 0.5*cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey))
     story.append(Paragraph(
-        f"Generated by Gram Nirikshan App | {datetime.now().strftime('%d/%m/%Y %H:%M')} | Report ID: {inspection.inspection_id}",
-        ParagraphStyle("Footer", fontSize=8, alignment=TA_CENTER, textColor=colors.grey)
+        f"ग्राम निरीक्षण मोबाइल ऐप द्वारा स्वचालित जनरेटेड | {datetime.now().strftime('%d/%m/%Y %H:%M')} | निरीक्षण ID: {inspection.inspection_id}",
+        ParagraphStyle("Footer", fontSize=8, fontName=pdf_font_name, alignment=TA_CENTER, textColor=colors.grey)
     ))
 
     doc.build(story)
@@ -238,7 +326,11 @@ async def generate_report(
     result4 = await db.execute(select(Photo).where(Photo.inspection_id == inspection_id))
     photos = result4.scalars().all()
 
-    result5 = await db.execute(select(Approval).where(Approval.inspection_id == inspection_id))
+    result5 = await db.execute(
+        select(Approval)
+        .where(Approval.inspection_id == inspection_id)
+        .options(selectinload(Approval.approver))
+    )
     approvals = result5.scalars().all()
 
     file_name = f"Report_{inspection.inspection_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
@@ -249,30 +341,31 @@ async def generate_report(
         try:
             from app.api.routes.ai import call_gemini
             
-            prompt = f"""Generate a professional, structured inspection report draft for the following inspection:
+            prompt = f"""उत्तर प्रदेश सरकार के ग्राम विकास विभाग के मानकों के अनुसार एक अत्यंत औपचारिक और पेशेवर ग्राम पंचायत निरीक्षण रिपोर्ट (निरीक्षण आख्या) का हिंदी में मसौदा तैयार करें।
+
+निरीक्षण विवरण:
+- निरीक्षण संख्या (ID): {inspection.inspection_id}
+- शीर्षक: {inspection.title}
+- ग्राम पंचायत: {panchayat.name_hindi or panchayat.name if panchayat else 'N/A'} (जनपद: {inspection.district or (panchayat.district if panchayat else 'N/A')}, विकास खंड: {inspection.block or (panchayat.block if panchayat else 'N/A')})
+- जांचकर्ता अधिकारी: {inspection.investigator_name or (engineer.name_hindi or engineer.name if engineer else 'N/A')} (पद: {engineer.designation or 'अवर अभियंता' if engineer else 'N/A'})
+- परियोजना/कार्य का नाम: {inspection.project_name or 'N/A'} (कार्य कोड: {inspection.project_code or 'N/A'})
+- निरीक्षण प्रकार: {inspection.inspection_type or 'सामान्य'}
+
+मुख्य अवलोकन / कमियां (Observations):
+{inspection.observations or 'स्थल निरीक्षण किया गया।'}
+
+सुधार हेतु संस्तुतियां/सिफारिशें (Recommendations):
+{inspection.recommendations or 'उचित सुधार कार्य किया जाए।'}
+
+निम्नलिखित शीर्षकों के अंतर्गत पूर्ण हिंदी रिपोर्ट तैयार करें (भाषा विशुद्ध प्रशासनिक/सरकारी राजभाषा हिंदी होनी चाहिए):
+1. कार्य का संक्षिप्त विवरण (Executive Summary)
+2. निरीक्षण के दौरान पाई गई कमियां/विशिष्ट निष्कर्ष (Key Findings & Observations)
+3. सुधार हेतु संस्तुतियां/सिफारिशें (Recommendations)
+4. निष्कर्ष (Conclusion)
+
+कृपया केवल हिंदी भाषा का उपयोग करें और सुनिश्चित करें कि भाषा का स्तर सरकारी पत्राचार और आधिकारिक आख्या के अनुरूप अत्यंत गरिमापूर्ण और गंभीर हो।"""
             
-Inspection ID: {inspection.inspection_id}
-Title: {inspection.title}
-Gram Panchayat: {panchayat.name if panchayat else 'N/A'} (District: {panchayat.district if panchayat else 'N/A'}, Block: {panchayat.block if panchayat else 'N/A'})
-Inspecting Officer: {engineer.name if engineer else 'N/A'} (Designation: {engineer.designation or 'N/A'})
-Project Work Name: {inspection.project_name or 'N/A'} (Code: {inspection.project_code or 'N/A'})
-Inspection Type: {inspection.inspection_type or 'General'}
-
-Observations / Deficiencies Found (कमी):
-{inspection.observations or 'No specific observations recorded.'}
-
-Recommendations / Disposal Steps (उपाय):
-{inspection.recommendations or 'No specific recommendations recorded.'}
-
-Please write:
-1. Executive Summary
-2. Deficiencies and Issues Found (detail what needs attention)
-3. Action Plan & Recommendations (detail disposal solutions and steps)
-4. Conclusion
-
-Format the response professionally in clean English so that it can be compiled into a PDF document."""
-            
-            ai_draft = await call_gemini(prompt, language="en")
+            ai_draft = await call_gemini(prompt, language="hi")
             if ai_draft and not ai_draft.startswith("AI Error:"):
                 inspection.ai_report_draft = ai_draft
                 await db.flush()
