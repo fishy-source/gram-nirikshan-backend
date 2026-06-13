@@ -313,8 +313,39 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
         section.left_margin = Inches(0.75)
         section.right_margin = Inches(0.75)
 
-    # Helper function to classify and write mixed text runs in Kruti Dev or Arial
-    def add_runs_to_p(p, text, bold=False, font_size_pt=18):
+    # Add a professional page border using XML manipulation
+    try:
+        from docx.oxml import parse_xml
+        from docx.oxml.ns import nsdecls
+        for section in doc.sections:
+            sectPr = section._sectPr
+            pgBorders_xml = (
+                f'<w:pgBorders {nsdecls("w")}>\n'
+                f'  <w:top w:val="single" w:sz="6" w:space="24" w:color="1A5276"/>\n'
+                f'  <w:left w:val="single" w:sz="6" w:space="24" w:color="1A5276"/>\n'
+                f'  <w:bottom w:val="single" w:sz="6" w:space="24" w:color="1A5276"/>\n'
+                f'  <w:right w:val="single" w:sz="6" w:space="24" w:color="1A5276"/>\n'
+                f'</w:pgBorders>'
+            )
+            sectPr.append(parse_xml(pgBorders_xml))
+    except Exception as border_err:
+        print(f"Failed to add page borders: {border_err}")
+
+    # Set document header/footer
+    try:
+        header = doc.sections[0].header
+        hp = header.paragraphs[0]
+        hp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        hrun = hp.add_run("Gram Panchayat Inspection Report")
+        hrun.font.name = 'Calibri'
+        hrun.font.size = Pt(8.5)
+        hrun.font.italic = True
+        hrun.font.color.rgb = RGBColor(128, 128, 128)
+    except Exception as header_err:
+        print(f"Failed to add header: {header_err}")
+
+    # Helper function to classify and write mixed text runs in Kruti Dev or Calibri
+    def add_runs_to_p(p, text, bold=False, font_size_pt=11, color_rgb=None):
         if not text:
             return
         spans = []
@@ -343,20 +374,47 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
             if t == 'hindi':
                 run.text = Unicode_to_KrutiDev(s)
                 run.font.name = 'Kruti Dev 010'
+                run.font.size = Pt(font_size_pt + 6)
             else:
                 run.text = s
-                run.font.name = 'Arial'
-            run.font.size = Pt(font_size_pt)
+                run.font.name = 'Calibri'
+                run.font.size = Pt(font_size_pt)
             if bold:
                 run.bold = True
+            if color_rgb:
+                run.font.color.rgb = RGBColor(*color_rgb)
 
-    def set_cell(cell, text, bold=False, font_size_pt=18):
+    def set_cell_background(cell, color_hex):
+        try:
+            from docx.oxml import parse_xml
+            from docx.oxml.ns import nsdecls
+            shading_xml = f'<w:shd {nsdecls("w")} w:fill="{color_hex}"/>'
+            cell._tc.get_or_add_tcPr().append(parse_xml(shading_xml))
+        except Exception as e:
+            print(f"Failed to set background color: {e}")
+
+    def set_cell(cell, text, bold=False, font_size_pt=10.5, color_rgb=None, is_label=False):
         cell.text = ""
         p = cell.paragraphs[0]
-        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        p.paragraph_format.space_after = Pt(2)
-        p.paragraph_format.space_before = Pt(2)
-        add_runs_to_p(p, text, bold=bold, font_size_pt=font_size_pt)
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p.paragraph_format.space_before = Pt(4)
+        p.paragraph_format.space_after = Pt(4)
+        p.paragraph_format.line_spacing = 1.15
+        add_runs_to_p(p, text, bold=bold, font_size_pt=font_size_pt, color_rgb=color_rgb)
+        if is_label:
+            set_cell_background(cell, "EAF2FB")
+
+    def set_table_widths(table, widths):
+        for row in table.rows:
+            for i, w in enumerate(widths):
+                if i < len(row.cells):
+                    row.cells[i].width = w
+
+    # Document Header Title
+    p_title = doc.add_paragraph()
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_title.paragraph_format.space_after = Pt(18)
+    add_runs_to_p(p_title, "INSPECTION REPORT", bold=True, font_size_pt=24, color_rgb=(26, 82, 118))
 
     # Basic Information
     engineer_name = inspection.investigator_name or (engineer.name or engineer.name_hindi if engineer else "N/A")
@@ -364,61 +422,84 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
     
     # Subheading/Section: Basic Info
     p_info_lbl = doc.add_paragraph()
-    p_info_lbl.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    add_runs_to_p(p_info_lbl, "Inspection Basic Details", bold=True, font_size_pt=19)
+    p_info_lbl.paragraph_format.space_before = Pt(12)
+    p_info_lbl.paragraph_format.space_after = Pt(6)
+    p_info_lbl.paragraph_format.keep_with_next = True
+    add_runs_to_p(p_info_lbl, "Inspection Basic Details", bold=True, font_size_pt=14, color_rgb=(26, 82, 118))
     
-    table = doc.add_table(rows=5, cols=2)
-    table.style = 'Table Grid'
+    basic_table = doc.add_table(rows=5, cols=4)
+    basic_table.style = 'Table Grid'
+    set_table_widths(basic_table, [Inches(1.5), Inches(2.0), Inches(1.5), Inches(2.0)])
     
-    info_pairs = [
-        (f"Inspection ID: {inspection.inspection_id}", f"Status: {get_val_str(inspection.status).upper()}"),
-        (f"Inspector: {engineer_name}", f"District: {dist}"),
-        (f"Gram Panchayat: {panchayat.name or panchayat.name_hindi if panchayat else 'N/A'}", f"Village: {panchayat.village or 'N/A' if panchayat else 'N/A'}"),
-        (f"Development Block: {blk}", f"Inspection Date: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}"),
-        (f"Project Name: {inspection.project_name or 'N/A'}", f"Work Code: {inspection.project_code or 'N/A'}"),
-    ]
+    # Row 0
+    set_cell(basic_table.rows[0].cells[0], "Inspection ID", bold=True, is_label=True, color_rgb=(26, 82, 118))
+    set_cell(basic_table.rows[0].cells[1], inspection.inspection_id)
+    set_cell(basic_table.rows[0].cells[2], "Status", bold=True, is_label=True, color_rgb=(26, 82, 118))
+    set_cell(basic_table.rows[0].cells[3], get_val_str(inspection.status).upper(), bold=True)
     
-    for idx, (col1, col2) in enumerate(info_pairs):
-        row = table.rows[idx]
-        set_cell(row.cells[0], col1, font_size_pt=18)
-        set_cell(row.cells[1], col2, font_size_pt=18)
-        
-    p_space = doc.add_paragraph()
-    p_space.paragraph_format.space_after = Pt(12)
+    # Row 1
+    set_cell(basic_table.rows[1].cells[0], "Inspector", bold=True, is_label=True, color_rgb=(26, 82, 118))
+    set_cell(basic_table.rows[1].cells[1], engineer_name)
+    set_cell(basic_table.rows[1].cells[2], "District", bold=True, is_label=True, color_rgb=(26, 82, 118))
+    set_cell(basic_table.rows[1].cells[3], dist)
+    
+    # Row 2
+    set_cell(basic_table.rows[2].cells[0], "Gram Panchayat", bold=True, is_label=True, color_rgb=(26, 82, 118))
+    set_cell(basic_table.rows[2].cells[1], panchayat.name or panchayat.name_hindi if panchayat else "N/A")
+    set_cell(basic_table.rows[2].cells[2], "Village", bold=True, is_label=True, color_rgb=(26, 82, 118))
+    set_cell(basic_table.rows[2].cells[3], panchayat.village or "N/A" if panchayat else "N/A")
+    
+    # Row 3
+    set_cell(basic_table.rows[3].cells[0], "Development Block", bold=True, is_label=True, color_rgb=(26, 82, 118))
+    set_cell(basic_table.rows[3].cells[1], blk)
+    set_cell(basic_table.rows[3].cells[2], "Inspection Date", bold=True, is_label=True, color_rgb=(26, 82, 118))
+    set_cell(basic_table.rows[3].cells[3], str(inspection.inspection_date)[:10] if inspection.inspection_date else "N/A")
+    
+    # Row 4
+    set_cell(basic_table.rows[4].cells[0], "Project Name", bold=True, is_label=True, color_rgb=(26, 82, 118))
+    set_cell(basic_table.rows[4].cells[1], inspection.project_name or "N/A")
+    set_cell(basic_table.rows[4].cells[2], "Work Code", bold=True, is_label=True, color_rgb=(26, 82, 118))
+    set_cell(basic_table.rows[4].cells[3], inspection.project_code or "N/A")
     
     # GPS Details
     if inspection.checkin_latitude:
         p_gps_lbl = doc.add_paragraph()
-        p_gps_lbl.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        add_runs_to_p(p_gps_lbl, "GPS Check-in/Check-out Details", bold=True, font_size_pt=19)
+        p_gps_lbl.paragraph_format.space_before = Pt(16)
+        p_gps_lbl.paragraph_format.space_after = Pt(6)
+        p_gps_lbl.paragraph_format.keep_with_next = True
+        add_runs_to_p(p_gps_lbl, "GPS Check-in / Check-out Details", bold=True, font_size_pt=14, color_rgb=(26, 82, 118))
         
-        gps_table = doc.add_table(rows=3, cols=2)
+        gps_table = doc.add_table(rows=3, cols=4)
         gps_table.style = 'Table Grid'
+        set_table_widths(gps_table, [Inches(1.5), Inches(2.0), Inches(1.5), Inches(2.0)])
         
-        gps_pairs = [
-            (f"Check-in Time: {str(inspection.checkin_time)[:16] if inspection.checkin_time else 'N/A'}", f"Check-in GPS: {inspection.checkin_latitude:.6f}, {inspection.checkin_longitude:.6f}"),
-            (f"Check-out Time: {str(inspection.checkout_time)[:16] if inspection.checkout_time else 'N/A'}", f"Check-out GPS: {f'{inspection.checkout_latitude:.6f}, {inspection.checkout_longitude:.6f}' if inspection.checkout_latitude else 'N/A'}"),
-        ]
+        # Row 0
+        set_cell(gps_table.rows[0].cells[0], "Check-in Time", bold=True, is_label=True, color_rgb=(26, 82, 118))
+        set_cell(gps_table.rows[0].cells[1], str(inspection.checkin_time)[:16] if inspection.checkin_time else "N/A")
+        set_cell(gps_table.rows[0].cells[2], "Check-in GPS", bold=True, is_label=True, color_rgb=(26, 82, 118))
+        set_cell(gps_table.rows[0].cells[3], f"{inspection.checkin_latitude:.6f}, {inspection.checkin_longitude:.6f}")
         
-        for idx in range(2):
-            row = gps_table.rows[idx]
-            set_cell(row.cells[0], gps_pairs[idx][0], font_size_pt=18)
-            set_cell(row.cells[1], gps_pairs[idx][1], font_size_pt=18)
-            
-        row2 = gps_table.rows[2]
-        cell_merged = row2.cells[0].merge(row2.cells[1])
-        set_cell(cell_merged, f"Check-in Location: {inspection.checkin_address or 'N/A'}", font_size_pt=18)
+        # Row 1
+        set_cell(gps_table.rows[1].cells[0], "Check-out Time", bold=True, is_label=True, color_rgb=(26, 82, 118))
+        set_cell(gps_table.rows[1].cells[1], str(inspection.checkout_time)[:16] if inspection.checkout_time else "N/A")
+        set_cell(gps_table.rows[1].cells[2], "Check-out GPS", bold=True, is_label=True, color_rgb=(26, 82, 118))
+        set_cell(gps_table.rows[1].cells[3], f"{inspection.checkout_latitude:.6f}, {inspection.checkout_longitude:.6f}" if inspection.checkout_latitude else "N/A")
         
-        p_space2 = doc.add_paragraph()
-        p_space2.paragraph_format.space_after = Pt(12)
+        # Row 2 (merged cell for address)
+        set_cell(gps_table.rows[2].cells[0], "Check-in Location", bold=True, is_label=True, color_rgb=(26, 82, 118))
+        
+        cell_merged = gps_table.rows[2].cells[1].merge(gps_table.rows[2].cells[2]).merge(gps_table.rows[2].cells[3])
+        set_cell(cell_merged, inspection.checkin_address or "N/A")
         
     # Map Attachment
     if inspection.map_image_path:
         map_file_path = get_absolute_path(inspection.map_image_path)
         if map_file_path.exists():
             p_map = doc.add_paragraph()
-            p_map.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-            add_runs_to_p(p_map, "Inspection Location Map", bold=True, font_size_pt=19)
+            p_map.paragraph_format.space_before = Pt(16)
+            p_map.paragraph_format.space_after = Pt(6)
+            p_map.paragraph_format.keep_with_next = True
+            add_runs_to_p(p_map, "Inspection Location Map", bold=True, font_size_pt=14, color_rgb=(26, 82, 118))
             
             p_img = doc.add_paragraph()
             p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -426,9 +507,6 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
                 p_img.add_run().add_picture(str(map_file_path), width=Inches(5.5))
             except Exception as e:
                 p_img.add_run(f"Failed to load map image: {e}")
-            
-            p_space3 = doc.add_paragraph()
-            p_space3.paragraph_format.space_after = Pt(12)
             
     # Observations & Recommendations
     for section_title, content in [
@@ -438,19 +516,25 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
     ]:
         if content:
             p_lbl = doc.add_paragraph()
-            p_lbl.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-            add_runs_to_p(p_lbl, section_title, bold=True, font_size_pt=19)
+            p_lbl.paragraph_format.space_before = Pt(16)
+            p_lbl.paragraph_format.space_after = Pt(6)
+            p_lbl.paragraph_format.keep_with_next = True
+            add_runs_to_p(p_lbl, section_title, bold=True, font_size_pt=14, color_rgb=(26, 82, 118))
             
             p_val = doc.add_paragraph()
             p_val.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            p_val.paragraph_format.space_before = Pt(4)
             p_val.paragraph_format.space_after = Pt(12)
-            add_runs_to_p(p_val, content, font_size_pt=18)
+            p_val.paragraph_format.line_spacing = 1.15
+            add_runs_to_p(p_val, content, font_size_pt=11)
             
     # AI Report Draft
     if inspection.ai_report_draft:
         p_ai_lbl = doc.add_paragraph()
-        p_ai_lbl.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        add_runs_to_p(p_ai_lbl, "Detailed Inspection Report", bold=True, font_size_pt=19)
+        p_ai_lbl.paragraph_format.space_before = Pt(16)
+        p_ai_lbl.paragraph_format.space_after = Pt(6)
+        p_ai_lbl.paragraph_format.keep_with_next = True
+        add_runs_to_p(p_ai_lbl, "Detailed Inspection Report", bold=True, font_size_pt=14, color_rgb=(26, 82, 118))
         
         ai_lines = inspection.ai_report_draft.split('\n')
         for line in ai_lines:
@@ -459,7 +543,10 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
                 clean_line = line.strip().replace('**', '').replace('###', '').replace('##', '').replace('*', '').strip()
                 p_line = doc.add_paragraph()
                 p_line.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                add_runs_to_p(p_line, clean_line, bold=is_bold, font_size_pt=18)
+                p_line.paragraph_format.space_before = Pt(2)
+                p_line.paragraph_format.space_after = Pt(4)
+                p_line.paragraph_format.line_spacing = 1.15
+                add_runs_to_p(p_line, clean_line, bold=is_bold, font_size_pt=11)
             else:
                 p_space = doc.add_paragraph()
                 p_space.paragraph_format.space_after = Pt(6)
@@ -474,11 +561,14 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
                 
     if valid_photos:
         p_photo_lbl = doc.add_paragraph()
-        p_photo_lbl.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        add_runs_to_p(p_photo_lbl, "Inspection Site Photographs", bold=True, font_size_pt=19)
+        p_photo_lbl.paragraph_format.space_before = Pt(16)
+        p_photo_lbl.paragraph_format.space_after = Pt(6)
+        p_photo_lbl.paragraph_format.keep_with_next = True
+        add_runs_to_p(p_photo_lbl, "Inspection Site Photographs", bold=True, font_size_pt=14, color_rgb=(26, 82, 118))
         
         photo_table = doc.add_table(rows=(len(valid_photos) + 1) // 2, cols=2)
         photo_table.style = 'Table Grid'
+        set_table_widths(photo_table, [Inches(3.5), Inches(3.5)])
         
         for idx, (photo, abs_p) in enumerate(valid_photos):
             row_idx = idx // 2
@@ -487,18 +577,49 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
             cell.text = ""
             p_cell = cell.paragraphs[0]
             p_cell.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p_cell.paragraph_format.space_before = Pt(6)
+            p_cell.paragraph_format.space_after = Pt(6)
             try:
-                p_cell.add_run().add_picture(str(abs_p), width=Inches(2.5))
-                caption_text = f"\n{photo.caption or 'Site Photograph'}\n{str(photo.captured_at)[:16] if photo.captured_at else ''}"
+                p_cell.add_run().add_picture(str(abs_p), width=Inches(3.0))
+                caption_text = f"{photo.caption or 'Site Photograph'} ({str(photo.captured_at)[:16] if photo.captured_at else ''})"
                 p_cap = cell.add_paragraph()
                 p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                add_runs_to_p(p_cap, caption_text, font_size_pt=14)
+                p_cap.paragraph_format.space_before = Pt(2)
+                p_cap.paragraph_format.space_after = Pt(4)
+                add_runs_to_p(p_cap, caption_text, font_size_pt=9.5, color_rgb=(85, 85, 85))
             except Exception as e:
                 p_cell.add_run(f"Failed to load photograph: {e}")
                 
-        p_space4 = doc.add_paragraph()
-        p_space4.paragraph_format.space_after = Pt(12)
+    # Approval Details
+    if approvals:
+        p_app_lbl = doc.add_paragraph()
+        p_app_lbl.paragraph_format.space_before = Pt(16)
+        p_app_lbl.paragraph_format.space_after = Pt(6)
+        p_app_lbl.paragraph_format.keep_with_next = True
+        add_runs_to_p(p_app_lbl, "Approval Details", bold=True, font_size_pt=14, color_rgb=(26, 82, 118))
         
+        app_table = doc.add_table(rows=1 + len(approvals), cols=5)
+        app_table.style = 'Table Grid'
+        set_table_widths(app_table, [Inches(1.0), Inches(2.0), Inches(1.2), Inches(1.5), Inches(1.3)])
+        
+        # Header Row
+        headers = ["Level", "Officer", "Status", "Remarks", "Date"]
+        for idx, h in enumerate(headers):
+            set_cell(app_table.rows[0].cells[idx], h, bold=True, is_label=True, color_rgb=(26, 82, 118))
+            
+        for row_idx, a in enumerate(approvals, start=1):
+            app_name = a.approver.name or a.approver.name_hindi if a.approver else "N/A"
+            desig = a.approver.designation or "Officer" if a.approver else ""
+            act_labels = {"pending": "Pending", "approved": "Approved", "rejected": "Rejected", "forwarded": "Forwarded"}
+            action_val = get_val_str(a.action)
+            action_eng = act_labels.get(action_val.lower(), action_val.upper())
+            
+            set_cell(app_table.rows[row_idx].cells[0], a.level)
+            set_cell(app_table.rows[row_idx].cells[1], f"{app_name} ({desig})")
+            set_cell(app_table.rows[row_idx].cells[2], action_eng, bold=True)
+            set_cell(app_table.rows[row_idx].cells[3], a.remarks or "-")
+            set_cell(app_table.rows[row_idx].cells[4], str(a.created_at)[:16])
+
     # Signatures
     witness_name = extract_witness_name(inspection.action_taken)
     if witness_name == "___________________":
@@ -508,27 +629,27 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
     p_sig_space.paragraph_format.space_before = Pt(24)
     
     sig_table = doc.add_table(rows=4, cols=3)
-    sig_table.columns[0].width = Inches(3.2)
-    sig_table.columns[1].width = Inches(0.6)
-    sig_table.columns[2].width = Inches(3.2)
+    sig_table.style = 'Normal Table'
+    set_table_widths(sig_table, [Inches(3.2), Inches(0.6), Inches(3.2)])
     
-    set_cell(sig_table.rows[0].cells[0], "Signature of Inspecting Officer", bold=True, font_size_pt=18)
-    set_cell(sig_table.rows[0].cells[2], "Signature of Witness / Representative", bold=True, font_size_pt=18)
+    set_cell(sig_table.rows[0].cells[0], "Signature of Inspecting Officer", bold=True, font_size_pt=11, color_rgb=(26, 82, 118))
+    set_cell(sig_table.rows[0].cells[2], "Signature of Witness / Representative", bold=True, font_size_pt=11, color_rgb=(26, 82, 118))
     
-    set_cell(sig_table.rows[1].cells[0], f"Name: {engineer_name}", font_size_pt=18)
-    set_cell(sig_table.rows[1].cells[2], f"Name: {witness_name}", font_size_pt=18)
+    set_cell(sig_table.rows[1].cells[0], f"Name: {engineer_name}", font_size_pt=10.5)
+    set_cell(sig_table.rows[1].cells[2], f"Name: {witness_name}", font_size_pt=10.5)
     
-    set_cell(sig_table.rows[2].cells[0], "", font_size_pt=18)
-    set_cell(sig_table.rows[2].cells[2], "", font_size_pt=18)
+    set_cell(sig_table.rows[2].cells[0], f"Designation: {engineer.designation or 'Junior Engineer' if engineer else 'N/A'}", font_size_pt=10.5)
+    set_cell(sig_table.rows[2].cells[2], "", font_size_pt=10.5)
     
-    set_cell(sig_table.rows[3].cells[0], f"Date: {datetime.now().strftime('%d/%m/%Y')}", font_size_pt=18)
-    set_cell(sig_table.rows[3].cells[2], "Date: ___________________", font_size_pt=18)
+    set_cell(sig_table.rows[3].cells[0], f"Date: {datetime.now().strftime('%d/%m/%Y')}", font_size_pt=10.5)
+    set_cell(sig_table.rows[3].cells[2], "Date: ___________________", font_size_pt=10.5)
     
     # Footer
     p_foot = doc.add_paragraph()
     p_foot.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_foot.paragraph_format.space_before = Pt(24)
-    add_runs_to_p(p_foot, f"──────────────────────────────────────────────────\nAuto-generated by Gram Nirikshan Mobile App | {datetime.now().strftime('%d/%m/%Y %H:%M')} | Inspection ID: {inspection.inspection_id}", font_size_pt=14)
+    p_foot.paragraph_format.space_after = Pt(6)
+    add_runs_to_p(p_foot, f"──────────────────────────────────────────────────\nAuto-generated by Gram Nirikshan Mobile App | {datetime.now().strftime('%d/%m/%Y %H:%M')} | Inspection ID: {inspection.inspection_id}", font_size_pt=9.5, color_rgb=(128, 128, 128))
     
     doc.save(output_path)
 
