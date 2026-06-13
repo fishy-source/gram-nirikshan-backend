@@ -260,6 +260,9 @@ class LanguageProvider with ChangeNotifier {
         '• तकनीकी सवाल\n\n'
         'हिंदी या अंग्रेजी में पूछें।',
     'ai_error_try_again': 'माफ़ करें, कोई त्रुटि हुई। कृपया पुनः प्रयास करें।',
+    'view_docx_report': 'Word रिपोर्ट देखें',
+    'downloading_docx': 'Word रिपोर्ट डाउनलोड हो रही है...',
+    'sharing_docx': 'Word रिपोर्ट शेयर की जा रही है...',
   };
 
   static const Map<String, String> _englishStrings = {
@@ -476,6 +479,9 @@ class LanguageProvider with ChangeNotifier {
         '• Technical questions\n\n'
         'Ask in Hindi or English.',
     'ai_error_try_again': 'Sorry, an error occurred. Please try again.',
+    'view_docx_report': 'View Word Report',
+    'downloading_docx': 'Downloading Word report...',
+    'sharing_docx': 'Sharing Word report...',
   };
 }
 

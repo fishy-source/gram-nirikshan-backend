@@ -25,6 +25,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
   final Map<String, bool> _generatingMap = {};
   final Map<String, double> _downloadProgressMap = {};
   final Map<String, bool> _downloadingMap = {};
+  final Map<String, bool> _downloadingDocxMap = {};
+  final Map<String, double> _downloadDocxProgressMap = {};
+
 
   @override
   void initState() {
@@ -228,6 +231,170 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
+  Future<void> _downloadAndViewDocxReport(String inspectionId, String title) async {
+    setState(() {
+      _downloadingDocxMap[inspectionId] = true;
+      _downloadDocxProgressMap[inspectionId] = 0.0;
+    });
+
+    try {
+      final downloadUrl = await ApiService().getReportDownloadUrl(inspectionId, format: 'docx');
+      final dir = await getApplicationDocumentsDirectory();
+      final savePath = '${dir.path}/Report_$inspectionId.docx';
+
+      // Download file using Dio
+      final dio = Dio();
+      
+      final flutterSecureStorage = const FlutterSecureStorage();
+      final tokenValue = await flutterSecureStorage.read(key: AppConstants.accessTokenKey);
+
+      try {
+        await dio.download(
+          downloadUrl,
+          savePath,
+          options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
+          onReceiveProgress: (received, total) {
+            if (total != -1) {
+              setState(() {
+                _downloadDocxProgressMap[inspectionId] = received / total;
+              });
+            }
+          },
+        );
+      } on DioException catch (de) {
+        if (de.response?.statusCode == 404) {
+          // Report not found, auto-generate first!
+          setState(() {
+            _generatingMap[inspectionId] = true;
+          });
+          await ApiService().generateReport(inspectionId);
+          setState(() {
+            _generatingMap[inspectionId] = false;
+          });
+          
+          // Retry downloading after successful generation
+          await dio.download(
+            downloadUrl,
+            savePath,
+            options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
+            onReceiveProgress: (received, total) {
+              if (total != -1) {
+                setState(() {
+                  _downloadDocxProgressMap[inspectionId] = received / total;
+                });
+              }
+            },
+          );
+        } else {
+          rethrow;
+        }
+      }
+
+      setState(() => _downloadingDocxMap[inspectionId] = false);
+
+      // Open the downloaded DOCX
+      final result = await OpenFile.open(savePath);
+      if (result.type != ResultType.done && mounted) {
+        // Fallback: launch in browser
+        final url = Uri.parse(downloadUrl);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        } else {
+          final isHindi = context.read<LanguageProvider>().isHindi;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isHindi ? 'फ़ाइल खोलने में असमर्थ: ${result.message}' : 'Unable to open file: ${result.message}'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _downloadingDocxMap[inspectionId] = false;
+        _generatingMap[inspectionId] = false;
+      });
+      if (mounted) {
+        final isHindi = context.read<LanguageProvider>().isHindi;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isHindi ? 'Word रिपोर्ट खोलने या बनाने में विफल: $e' : 'Failed to open or generate Word report: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareDocxReportFile(String inspectionId, String title) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(context.tr('sharing_docx'))),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      final downloadUrl = await ApiService().getReportDownloadUrl(inspectionId, format: 'docx');
+      final dir = await getTemporaryDirectory();
+      final savePath = '${dir.path}/Report_$inspectionId.docx';
+
+      // Download file using Dio
+      final dio = Dio();
+      final flutterSecureStorage = const FlutterSecureStorage();
+      final tokenValue = await flutterSecureStorage.read(key: AppConstants.accessTokenKey);
+
+      try {
+        await dio.download(
+          downloadUrl,
+          savePath,
+          options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
+        );
+      } on DioException catch (de) {
+        if (de.response?.statusCode == 404) {
+          // Report not found, auto-generate first!
+          await ApiService().generateReport(inspectionId);
+          // Retry downloading after successful generation
+          await dio.download(
+            downloadUrl,
+            savePath,
+            options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
+          );
+        } else {
+          rethrow;
+        }
+      }
+
+      // Share the downloaded actual DOCX file
+      final isHindi = context.read<LanguageProvider>().isHindi;
+      final shareText = isHindi ? 'ग्राम निरीक्षण Word रिपोर्ट: $title' : 'Gram Inspection Word Report: $title';
+      await Share.shareXFiles(
+        [XFile(savePath)],
+        text: shareText,
+      );
+    } catch (e) {
+      if (mounted) {
+        final isHindi = context.read<LanguageProvider>().isHindi;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isHindi ? 'शेयर करने में त्रुटि: $e' : 'Error sharing: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final inspections = context.watch<InspectionProvider>().inspections;
@@ -263,6 +430,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       final isGenerating = _generatingMap[ins.id] ?? false;
                       final isDownloading = _downloadingMap[ins.id] ?? false;
                       final progress = _downloadProgressMap[ins.id] ?? 0.0;
+                      final isDownloadingDocx = _downloadingDocxMap[ins.id] ?? false;
+                      final progressDocx = _downloadDocxProgressMap[ins.id] ?? 0.0;
+
 
                       return Card(
                         elevation: 2,
@@ -319,6 +489,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                                   ),
                                 ),
+                              ] else if (isDownloadingDocx) ...[
+                                LinearProgressIndicator(value: progressDocx),
+                                const SizedBox(height: 8),
+                                Center(
+                                  child: Text(
+                                    '${context.tr('downloading_docx')} ${(progressDocx * 100).toStringAsFixed(0)}%',
+                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  ),
+                                ),
                               ] else ...[
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
@@ -342,7 +521,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                     ),
                                     const SizedBox(width: 8),
 
-                                    // Button to Download and View
+                                    // Button to Download and View PDF
                                     IconButton(
                                       icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
                                       tooltip: context.tr('view_reports'),
@@ -354,6 +533,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                       icon: const Icon(Icons.share, color: AppTheme.secondaryColor),
                                       tooltip: context.tr('share'),
                                       onPressed: () => _shareReportFile(ins.id, ins.title),
+                                    ),
+                                    
+                                    const SizedBox(width: 8),
+
+                                    // Button to Download and View DOCX
+                                    IconButton(
+                                      icon: const Icon(Icons.description, color: Colors.blue),
+                                      tooltip: context.tr('view_docx_report'),
+                                      onPressed: () => _downloadAndViewDocxReport(ins.id, ins.title),
+                                    ),
+
+                                    // Button to share DOCX file
+                                    IconButton(
+                                      icon: const Icon(Icons.share, color: Colors.blueAccent),
+                                      tooltip: context.tr('share'),
+                                      onPressed: () => _shareDocxReportFile(ins.id, ins.title),
                                     ),
                                   ],
                                 ),

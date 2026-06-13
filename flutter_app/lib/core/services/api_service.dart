@@ -202,8 +202,8 @@ class ApiService {
   Future<Response> generateReport(String inspectionId) =>
       _dio.post('/reports/generate/$inspectionId');
 
-  Future<String> getReportDownloadUrl(String inspectionId) =>
-      Future.value('${AppConstants.baseUrl}/reports/download/$inspectionId');
+  Future<String> getReportDownloadUrl(String inspectionId, {String format = 'pdf'}) =>
+      Future.value('${AppConstants.baseUrl}/reports/download/$inspectionId?format=$format');
 
   // ── AI ────────────────────────────────────────────────────────────────────
 
