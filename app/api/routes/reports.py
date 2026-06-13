@@ -513,7 +513,7 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
     set_cell(sig_table.rows[1].cells[2], f"नाम (Name): {witness_name}", font_size_pt=18)
     
     set_cell(sig_table.rows[2].cells[0], "", font_size_pt=18)
-    set_cell(sig_table.rows[2].cells[2], "पता/मोबाइल: ___________________", font_size_pt=18)
+    set_cell(sig_table.rows[2].cells[2], "", font_size_pt=18)
     
     set_cell(sig_table.rows[3].cells[0], f"दिनांक (Date): {datetime.now().strftime('%d/%m/%Y')}", font_size_pt=18)
     set_cell(sig_table.rows[3].cells[2], "दिनांक (Date): ___________________", font_size_pt=18)
@@ -730,6 +730,8 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
     if witness_name == "___________________":
         witness_name = extract_witness_name(inspection.description)
     engineer_designation = engineer.designation or "अवर अभियंता" if engineer else "N/A"
+    if engineer_designation.strip().lower() in ["super admin", "superadmin"]:
+        engineer_designation = ""
 
     sig_data = [
         [Paragraph(to_pdf_html("जांचकर्ता अधिकारी के हस्ताक्षर", bold=True), normal), "", Paragraph(to_pdf_html("गवाह के हस्ताक्षर", bold=True), normal)],
@@ -737,7 +739,7 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
         [Paragraph(to_pdf_html(f"नाम (Name): {engineer_name}"), normal), "",
          Paragraph(to_pdf_html(f"नाम (Name): {witness_name}"), normal)],
         [Paragraph(to_pdf_html(f"पदनाम (Designation): {engineer_designation}"), normal), "",
-         Paragraph(to_pdf_html("पता/मोबाइल: ___________________"), normal)],
+         Paragraph(to_pdf_html(""), normal)],
         [Paragraph(to_pdf_html(f"दिनांक (Date): {datetime.now().strftime('%d/%m/%Y')}"), normal), "",
          Paragraph(to_pdf_html("दिनांक (Date): ___________________"), normal)],
     ]
