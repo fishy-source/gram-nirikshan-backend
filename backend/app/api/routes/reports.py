@@ -60,6 +60,9 @@ def get_absolute_path(rel_path: str) -> Path:
 
 
 # Register Poppins Hindi Unicode font
+pdf_font_name = 'Helvetica'
+pdf_font_bold_name = 'Helvetica-Bold'
+
 try:
     flutter_font_dir = Path(__file__).parents[4] / "flutter_app" / "assets" / "fonts"
     backend_font_dir = Path(__file__).parents[3] / "assets" / "fonts"
@@ -69,26 +72,54 @@ try:
         src = flutter_font_dir / font_name
         dst = backend_font_dir / font_name
         if src.exists() and not dst.exists():
-            shutil.copy(src, dst)
+            try:
+                shutil.copy(src, dst)
+            except Exception as ce:
+                print(f"Failed to copy font {font_name}: {ce}")
 
-    font_path_regular = backend_font_dir / "Poppins-Regular.ttf"
-    font_path_bold = backend_font_dir / "Poppins-Bold.ttf"
+    # Verify and register from candidate paths
+    possible_paths = [
+        (backend_font_dir / "Poppins-Regular.ttf", backend_font_dir / "Poppins-Bold.ttf"),
+        (flutter_font_dir / "Poppins-Regular.ttf", flutter_font_dir / "Poppins-Bold.ttf"),
+        (Path("/app/flutter_app/assets/fonts/Poppins-Regular.ttf"), Path("/app/flutter_app/assets/fonts/Poppins-Bold.ttf")),
+        (Path("/app/assets/fonts/Poppins-Regular.ttf"), Path("/app/assets/fonts/Poppins-Bold.ttf")),
+    ]
 
-    if font_path_regular.exists():
+    font_path_regular = None
+    font_path_bold = None
+
+    for reg, bld in possible_paths:
+        if reg.exists() and bld.exists():
+            font_path_regular = reg
+            font_path_bold = bld
+            break
+
+    if font_path_regular and font_path_bold:
         pdfmetrics.registerFont(TTFont('Poppins', str(font_path_regular)))
-        pdf_font_name = 'Poppins'
-    else:
-        pdf_font_name = 'Helvetica'
-
-    if font_path_bold.exists():
         pdfmetrics.registerFont(TTFont('Poppins-Bold', str(font_path_bold)))
+        pdf_font_name = 'Poppins'
         pdf_font_bold_name = 'Poppins-Bold'
-    else:
-        pdf_font_bold_name = 'Helvetica-Bold'
 except Exception as e:
-    print(f"Error copying/registering Poppins fonts: {e}")
+    print(f"Error registering Poppins fonts: {e}")
     pdf_font_name = 'Helvetica'
     pdf_font_bold_name = 'Helvetica-Bold'
+
+
+def extract_witness_name(description: str) -> str:
+    if not description:
+        return "___________________"
+    import re
+    match = re.search(r"(?:गवाह का नाम|गवाह\s*नाम|गवाह|witness name|witness)\s*[:：\-‐—\s]\s*([^\n\r।\.]+)", description, re.IGNORECASE)
+    if match:
+        name = match.group(1).strip()
+        name = name.split(',')[0].split(';')[0].strip()
+        name = re.sub(r"^(?:श्री|shri|mr\.|mrs\.)\s+", "", name, flags=re.IGNORECASE)
+        stop_words = ["उपस्थित", "मौजूद", "थे", "था", "रहा", "रही", "गया", "गई", "है", "हैं", "present", "here", "was", "is", "were"]
+        for stop_word in stop_words:
+            name = re.sub(rf"(?:\s+|^){stop_word}(?:\s+|$)", " ", name, flags=re.IGNORECASE).strip()
+        if name:
+            return name
+    return "___________________"
 
 
 def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_path: str):
@@ -278,18 +309,23 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
 
     # ── Signature ─────────────────────────────────────────────
     story.append(Spacer(1, 1*cm))
+    witness_name = extract_witness_name(inspection.description)
+    engineer_designation = engineer.designation or "अवर अभियंता" if engineer else "N/A"
+
     sig_data = [
-        [Paragraph("जांचकर्ता अधिकारी के हस्ताक्षर", normal), "", Paragraph("समीक्षा अधिकारी के हस्ताक्षर", normal)],
+        [Paragraph("जांचकर्ता अधिकारी के हस्ताक्षर", normal), "", Paragraph("गवाह के हस्ताक्षर", normal)],
         ["", "", ""],
         [Paragraph(f"नाम (Name): {engineer_name}", normal), "",
-         Paragraph("नाम (Name): ___________________", normal)],
+         Paragraph(f"नाम (Name): {witness_name}", normal)],
+        [Paragraph(f"पदनाम (Designation): {engineer_designation}", normal), "",
+         Paragraph("पता/मोबाइल: ___________________", normal)],
         [Paragraph(f"दिनांक (Date): {datetime.now().strftime('%d/%m/%Y')}", normal), "",
          Paragraph("दिनांक (Date): ___________________", normal)],
     ]
     sig_table = Table(sig_data, colWidths=[8*cm, 3*cm, 8*cm])
     sig_table.setStyle(TableStyle([
-        ("LINEABOVE", (0, 1), (0, 1), 1, colors.black),
-        ("LINEABOVE", (2, 1), (2, 1), 1, colors.black),
+        ("LINEABOVE", (0, 2), (0, 2), 1, colors.black),
+        ("LINEABOVE", (2, 2), (2, 2), 1, colors.black),
         ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
     ]))
     story.append(sig_table)
