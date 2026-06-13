@@ -1,7 +1,7 @@
 """
 FastAPI Main Application Entry Point for Gram Nirikshan App.
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -206,6 +206,27 @@ app.add_middleware(
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    import httpx
+    tb = traceback.format_exc()
+    logger.error(f"Global exception on {request.method} {request.url.path}: {exc}\n{tb}")
+    try:
+        # Send traceback to ntfy
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                "https://ntfy.sh/rakesh_nirikshan_debug_final",
+                content=f"500 ERROR: {exc}\n\nPath: {request.url.path}\nMethod: {request.method}\n\n{tb}",
+                timeout=10
+            )
+    except Exception:
+        pass
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error", "error": str(exc), "traceback": tb}
+    )
 
 # ─── Static File Serving ───────────────────────────────────────────────────────
 
