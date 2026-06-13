@@ -863,7 +863,7 @@ async def download_report(
         .where(Report.report_format == format)
         .order_by(Report.created_at.desc())
     )
-    report = result.scalar_one_or_none()
+    report = result.scalars().first()
     if not report or not Path(report.file_path).exists():
         raise HTTPException(status_code=404, detail=f"Report in {format} format not found. Generate it first.")
 
