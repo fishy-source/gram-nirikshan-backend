@@ -361,6 +361,20 @@ async def debug_endpoint(seed: bool = False):
                     "name": p.name
                 })
             info["panchayats"] = panchayats_list
+
+            # Query inspections columns
+            res_cols = await session.execute(text("SHOW COLUMNS FROM inspections"))
+            cols_list = []
+            for col in res_cols.fetchall():
+                cols_list.append({
+                    "field": col[0],
+                    "type": col[1],
+                    "null": col[2],
+                    "key": col[3],
+                    "default": col[4],
+                    "extra": col[5]
+                })
+            info["inspections_columns"] = cols_list
     except Exception as e:
         info["db_connection"] = f"Failed: {str(e)}"
         info["db_traceback"] = traceback.format_exc()
