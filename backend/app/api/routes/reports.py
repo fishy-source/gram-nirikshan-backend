@@ -136,6 +136,14 @@ def extract_witness_name(description: str) -> str:
     return "___________________"
 
 
+def get_val_str(val) -> str:
+    if val is None:
+        return ""
+    if hasattr(val, "value"):
+        return str(val.value)
+    return str(val)
+
+
 def build_docx_report(inspection, panchayat, engineer, photos, approvals, output_path: str):
     """Build a formal Microsoft Word report."""
     if not docx:
@@ -198,7 +206,7 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
             
     # Row contents helper
     info_pairs = [
-        (f"निरीक्षण संख्या (ID): {inspection.inspection_id}", f"स्थिति (Status): {inspection.status.value.upper()}"),
+        (f"निरीक्षण संख्या (ID): {inspection.inspection_id}", f"स्थिति (Status): {get_val_str(inspection.status).upper()}"),
         (f"जांचकर्ता (Inspector): {engineer_name}", f"पद (Designation): {engineer.designation or 'अवर अभियंता' if engineer else 'N/A'}"),
         (f"ग्राम पंचायत: {panchayat.name_hindi or panchayat.name if panchayat else 'N/A'}", f"जनपद (District): {dist}"),
         (f"विकास खंड (Block): {blk}", f"ग्राम (Village): {panchayat.village or 'N/A' if panchayat else 'N/A'}"),
@@ -330,7 +338,8 @@ def build_docx_report(inspection, panchayat, engineer, photos, approvals, output
             app_name = a.approver.name_hindi or a.approver.name if a.approver else "N/A"
             desig = a.approver.designation or "अधिकारी" if a.approver else ""
             act_labels = {"pending": "लंबित", "approved": "स्वीकृत", "rejected": "अस्वीकृत", "forwarded": "अग्रेषित"}
-            action_hindi = act_labels.get(a.action.value.lower(), a.action.value.upper())
+            action_val = get_val_str(a.action)
+            action_hindi = act_labels.get(action_val.lower(), action_val.upper())
             
             row = app_table.rows[row_idx + 1]
             set_cell(row.cells[0], a.level)
@@ -418,7 +427,7 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
 
     info_data = [
         [Paragraph("निरीक्षण संख्या (ID)", normal), Paragraph(inspection.inspection_id, normal), 
-         Paragraph("स्थिति (Status)", normal), Paragraph(inspection.status.value.upper(), normal)],
+         Paragraph("स्थिति (Status)", normal), Paragraph(get_val_str(inspection.status).upper(), normal)],
         [Paragraph("जांचकर्ता (Inspector)", normal), Paragraph(engineer_name, normal), 
          Paragraph("पद (Designation)", normal), Paragraph(engineer.designation or "अवर अभियंता" if engineer else "N/A", normal)],
         [Paragraph("ग्राम पंचायत", normal), Paragraph(panchayat.name_hindi or panchayat.name if panchayat else "N/A", normal), 
@@ -547,7 +556,8 @@ def build_pdf_report(inspection, panchayat, engineer, photos, approvals, output_
             app_name = a.approver.name_hindi or a.approver.name if a.approver else "N/A"
             desig = a.approver.designation or "अधिकारी" if a.approver else ""
             act_labels = {"pending": "लंबित", "approved": "स्वीकृत", "rejected": "अस्वीकृत", "forwarded": "अग्रेषित"}
-            action_hindi = act_labels.get(a.action.value.lower(), a.action.value.upper())
+            action_val = get_val_str(a.action)
+            action_hindi = act_labels.get(action_val.lower(), action_val.upper())
             
             approval_data.append([
                 Paragraph(a.level, normal),
