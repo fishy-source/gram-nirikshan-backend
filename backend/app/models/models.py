@@ -173,6 +173,10 @@ class Inspection(Base):
     inspection_type = Column(String(100), nullable=True)
     project_name = Column(String(300), nullable=True)
     project_code = Column(String(50), nullable=True)
+    investigator_name = Column(String(200), nullable=True)
+    district = Column(String(100), nullable=True)
+    block = Column(String(100), nullable=True)
+    map_image_path = Column(String(500), nullable=True)
 
     # GPS Data
     checkin_latitude = Column(Float, nullable=True)

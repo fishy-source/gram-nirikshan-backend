@@ -1,9 +1,11 @@
 // AI Assistant Screen with Gemini chat, Hindi voice input, and suggestions
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
+import '../../providers/language_provider.dart';
 
 class AIAssistantScreen extends StatefulWidget {
   final String? inspectionId;
@@ -26,6 +28,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   @override
   void initState() {
     super.initState();
+    _language = context.read<LanguageProvider>().isHindi ? 'hi' : 'en';
     _initSpeech();
     _addWelcomeMessage();
   }
@@ -52,14 +55,23 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   }
 
   void _addWelcomeMessage() {
+    final welcomeText = _language == 'hi'
+        ? 'नमस्ते! मैं ग्राम निरीक्षण AI सहायक हूं 🙏\n\n'
+          'आप मुझसे पूछ सकते हैं:\n'
+          '• निरीक्षण कैसे करें?\n'
+          '• रिपोर्ट कैसे लिखें?\n'
+          '• सरकारी योजनाओं की जानकारी\n'
+          '• तकनीकी सवाल\n\n'
+          'हिंदी या अंग्रेजी में पूछें।'
+        : 'Hello! I am your Gram Nirikshan AI Assistant 🙏\n\n'
+          'You can ask me about:\n'
+          '• How to conduct an inspection?\n'
+          '• How to write reports?\n'
+          '• Information on govt schemes\n'
+          '• Technical questions\n\n'
+          'Ask in Hindi or English.';
     _messages.add(_ChatMessage(
-      text: 'नमस्ते! मैं ग्राम निरीक्षण AI सहायक हूं 🙏\n\n'
-            'आप मुझसे पूछ सकते हैं:\n'
-            '• निरीक्षण कैसे करें?\n'
-            '• रिपोर्ट कैसे लिखें?\n'
-            '• सरकारी योजनाओं की जानकारी\n'
-            '• तकनीकी सवाल\n\n'
-            'हिंदी या अंग्रेजी में पूछें।',
+      text: welcomeText,
       isUser: false,
       timestamp: DateTime.now(),
     ));
@@ -70,10 +82,10 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: const Row(children: [
-          Icon(Icons.smart_toy_rounded, color: Colors.white, size: 22),
-          SizedBox(width: 8),
-          Text('AI सहायक'),
+        title: Row(children: [
+          const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 22),
+          const SizedBox(width: 8),
+          Text(context.tr('ai_assistant')),
         ]),
         actions: [
           // Language toggle
@@ -83,7 +95,15 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
               Text('हिं', style: TextStyle(color: _language == 'hi' ? Colors.white : Colors.white38, fontWeight: FontWeight.bold)),
               Switch(
                 value: _language == 'en',
-                onChanged: (v) => setState(() => _language = v ? 'en' : 'hi'),
+                onChanged: (v) {
+                  setState(() {
+                    _language = v ? 'en' : 'hi';
+                    if (_messages.length == 1 && !_messages[0].isUser) {
+                      _messages.clear();
+                      _addWelcomeMessage();
+                    }
+                  });
+                },
                 activeColor: AppTheme.accentColor,
               ),
               Text('EN', style: TextStyle(color: _language == 'en' ? Colors.white : Colors.white38, fontWeight: FontWeight.bold)),
@@ -282,7 +302,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     } catch (e) {
       setState(() {
         _messages.add(_ChatMessage(
-          text: 'माफ़ करें, कोई त्रुटि हुई। कृपया पुनः प्रयास करें।',
+          text: _language == 'hi' 
+              ? 'माफ़ करें, कोई त्रुटि हुई। कृपया पुनः प्रयास करें।' 
+              : 'Sorry, an error occurred. Please try again.',
           isUser: false, timestamp: DateTime.now(),
         ));
         _isLoading = false;

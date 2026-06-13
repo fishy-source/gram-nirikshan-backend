@@ -9,6 +9,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
 import '../../providers/inspection_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/language_provider.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../data/models/models.dart';
 
 class InspectionDetailScreen extends StatefulWidget {
@@ -58,9 +60,9 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                 expandedHeight: 160,
                 pinned: true,
                 backgroundColor: AppTheme.primaryColor,
+                title: Text(inspection.isDraft ? '' : inspection.inspectionId,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 flexibleSpace: FlexibleSpaceBar(
-                  title: Text(inspection.isDraft ? 'निरीक्षण मसौदा' : inspection.inspectionId,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
                   background: Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
@@ -102,11 +104,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.white60,
                   labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-                  tabs: const [
-                    Tab(text: 'विवरण'),
-                    Tab(text: 'GPS'),
-                    Tab(text: 'फ़ोटो'),
-                    Tab(text: 'अनुमोदन'),
+                  tabs: [
+                    Tab(text: context.tr('details_tab')),
+                    Tab(text: context.tr('gps_tab')),
+                    Tab(text: context.tr('photos_tab')),
+                    Tab(text: context.tr('approval_tab')),
                   ],
                 ),
               ),
@@ -132,7 +134,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? '✅ AI रिपोर्ट मसौदा सफलतापूर्वक तैयार हो गया!' : '❌ AI जनरेशन विफल हुआ'),
+          content: Text(success ? context.tr('ai_generation_success') : context.tr('ai_generation_failed')),
           backgroundColor: success ? AppTheme.successColor : AppTheme.errorColor,
         ),
       );
@@ -144,49 +146,55 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          _buildInfoCard('बुनियादी जानकारी', [
+          _buildInfoCard(context.tr('basic_info'), [
             if (!inspection.isDraft)
-              _InfoRow(Icons.badge_rounded, 'निरीक्षण ID', inspection.inspectionId),
+              _InfoRow(Icons.badge_rounded, context.tr('inspection_id'), inspection.inspectionId),
+            if (inspection.investigatorName != null && inspection.investigatorName!.isNotEmpty)
+              _InfoRow(Icons.person_outline_rounded, context.tr('investigator_name_label'), inspection.investigatorName!),
+            if (inspection.district != null && inspection.district!.isNotEmpty)
+              _InfoRow(Icons.map_rounded, context.tr('district'), inspection.district!),
+            if (inspection.block != null && inspection.block!.isNotEmpty)
+              _InfoRow(Icons.location_on_rounded, context.tr('block'), inspection.block!),
             if (inspection.inspectionType != null)
-              _InfoRow(Icons.category_rounded, 'प्रकार', inspection.inspectionType!),
+              _InfoRow(Icons.category_rounded, context.tr('inspection_type'), inspection.inspectionType!),
             if (inspection.projectName != null)
-              _InfoRow(Icons.work_rounded, 'परियोजना', inspection.projectName!),
+              _InfoRow(Icons.work_rounded, context.tr('project_name'), inspection.projectName!),
             if (inspection.projectCode != null)
-              _InfoRow(Icons.qr_code_rounded, 'परियोजना कोड', inspection.projectCode!),
+              _InfoRow(Icons.qr_code_rounded, context.tr('project_code'), inspection.projectCode!),
             if (inspection.inspectionDate != null)
-              _InfoRow(Icons.calendar_today_rounded, 'निरीक्षण तिथि', _formatDate(inspection.inspectionDate!)),
-            _InfoRow(Icons.person_rounded, 'अभियंता', inspection.engineer?.name ?? 'N/A'),
+              _InfoRow(Icons.calendar_today_rounded, context.tr('inspection_date'), _formatDate(inspection.inspectionDate!)),
+            _InfoRow(Icons.person_rounded, context.tr('engineers'), inspection.engineer?.name ?? 'N/A'),
           ]),
           if (!inspection.isDraft) ...[
             const SizedBox(height: 12),
-            _buildInfoCard('अनुमोदन एवं समीक्षा विवरण', [
-              _InfoRow(Icons.info_outline_rounded, 'वर्तमान स्थिति (Status)', inspection.statusLabel),
+            _buildInfoCard(context.tr('approval_review_details'), [
+              _InfoRow(Icons.info_outline_rounded, context.tr('current_status'), context.tr(inspection.status)),
               if (inspection.status == 'submitted')
-                _InfoRow(Icons.person_outline_rounded, 'किसको भेजा गया है', 'सहायक अभियंता (AE) - समीक्षा के लिए लंबित'),
+                _InfoRow(Icons.person_outline_rounded, context.tr('sent_to'), context.tr('ae_pending')),
               if (inspection.status == 'verified')
-                _InfoRow(Icons.person_outline_rounded, 'किसको भेजा गया है', 'अधिशासी अभियंता (XEN) - समीक्षा के लिए लंबित'),
+                _InfoRow(Icons.person_outline_rounded, context.tr('sent_to'), context.tr('xen_pending')),
               if (inspection.status == 'approved')
-                _InfoRow(Icons.check_circle_outline_rounded, 'सत्यापन/स्वीकृति', 'अधिकारी द्वारा स्वीकृत (Approved)'),
+                _InfoRow(Icons.check_circle_outline_rounded, context.tr('verification_approval'), context.tr('officer_approved')),
               if (inspection.status == 'rejected')
-                _InfoRow(Icons.highlight_off_rounded, 'सत्यापन/स्वीकृति', 'अधिकारी द्वारा अस्वीकृत (Rejected)'),
+                _InfoRow(Icons.highlight_off_rounded, context.tr('verification_approval'), context.tr('officer_rejected')),
             ]),
           ],
           if (inspection.observations != null && inspection.observations!.isNotEmpty) ...[
             const SizedBox(height: 12),
-            _buildTextCard('अवलोकन (Observations)', inspection.observations!),
+            _buildTextCard(context.tr('observations'), inspection.observations!),
           ],
           if (inspection.recommendations != null && inspection.recommendations!.isNotEmpty) ...[
             const SizedBox(height: 12),
-            _buildTextCard('सुझाव (Recommendations)', inspection.recommendations!),
+            _buildTextCard(context.tr('recommendations'), inspection.recommendations!),
           ],
           if (inspection.actionTaken != null && inspection.actionTaken!.isNotEmpty) ...[
             const SizedBox(height: 12),
-            _buildTextCard('की गई कार्रवाई (Action Taken)', inspection.actionTaken!),
+            _buildTextCard(context.tr('action_taken'), inspection.actionTaken!),
           ],
           const SizedBox(height: 16),
           // AI Suggested Report Card
           if (inspection.aiReportDraft != null && inspection.aiReportDraft!.isNotEmpty) ...[
-            _buildTextCard('AI द्वारा सुझाया गया मसौदा (AI Suggested Draft)', inspection.aiReportDraft!),
+            _buildTextCard(context.tr('ai_draft'), inspection.aiReportDraft!),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -196,11 +204,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                       final confirmed = await showDialog<bool>(
                         context: context,
                         builder: (_) => AlertDialog(
-                          title: const Text('अवलोकन में कॉपी करें?'),
-                          content: const Text('क्या आप इस AI रिपोर्ट मसौदे को अपने मुख्य अवलोकन (Observations) में कॉपी करना चाहते हैं?'),
+                          title: Text(context.tr('copy_to_observations')),
+                          content: Text(context.tr('copy_confirm')),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('रद्द करें')),
-                            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('कॉपी करें')),
+                            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.tr('cancel'))),
+                            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(context.tr('copy'))),
                           ],
                         ),
                       );
@@ -211,7 +219,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(ok ? '✅ अवलोकन सफलतापूर्वक अपडेट किया गया!' : '❌ अपडेट विफल'),
+                              content: Text(ok ? context.tr('observations_update_success') : context.tr('update_failed')),
                               backgroundColor: ok ? AppTheme.successColor : AppTheme.errorColor,
                             ),
                           );
@@ -219,7 +227,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                       }
                     },
                     icon: const Icon(Icons.copy_rounded, size: 16, color: Colors.white),
-                    label: const Text('अवलोकन में सेट करें', style: TextStyle(color: Colors.white, fontSize: 12)),
+                    label: Text(context.tr('set_to_observations'), style: const TextStyle(color: Colors.white, fontSize: 12)),
                     style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
                   ),
                 ),
@@ -227,7 +235,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded, color: AppTheme.secondaryColor),
                   onPressed: provider.isLoading ? null : () => _runAISuggestions(inspection.id, provider),
-                  tooltip: 'पुनः जनरेट करें',
+                  tooltip: context.tr('regenerate'),
                 ),
               ],
             ),
@@ -244,15 +252,15 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                 children: [
                   const Icon(Icons.smart_toy_rounded, size: 36, color: AppTheme.primaryColor),
                   const SizedBox(height: 8),
-                  const Text(
-                    'AI से रिपोर्ट का मसौदा तैयार करवाएं',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  Text(
+                    context.tr('get_ai_draft'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'यह आपके निरीक्षण डेटा, पंचायत और फ़ोटो के आधार पर विभाग-अनुकूल रिपोर्ट का मसौदा तैयार करेगा।',
+                  Text(
+                    context.tr('get_ai_draft_sub'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey, fontSize: 11),
+                    style: const TextStyle(color: Colors.grey, fontSize: 11),
                   ),
                   const SizedBox(height: 12),
                   provider.isLoading
@@ -260,7 +268,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                       : ElevatedButton.icon(
                           onPressed: () => _runAISuggestions(inspection.id, provider),
                           icon: const Icon(Icons.bolt_rounded, color: Colors.white),
-                          label: const Text('AI (Gemini) से रिपोर्ट लिखवाएं', style: TextStyle(color: Colors.white)),
+                          label: Text(context.tr('generate_ai_report'), style: const TextStyle(color: Colors.white)),
                           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
                         ),
                 ],
@@ -278,24 +286,59 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       child: Column(
         children: [
           if (inspection.checkinTime != null)
-            _buildInfoCard('चेक-इन विवरण', [
-              _InfoRow(Icons.access_time_rounded, 'समय', _formatDateTime(inspection.checkinTime!)),
+            _buildInfoCard(context.tr('checkin_details'), [
+              _InfoRow(Icons.access_time_rounded, context.tr('time'), _formatDateTime(inspection.checkinTime!)),
               if (inspection.checkinLatitude != null)
-                _InfoRow(Icons.location_on_rounded, 'GPS',
+                _InfoRow(Icons.location_on_rounded, context.tr('gps'),
                     '${inspection.checkinLatitude!.toStringAsFixed(6)}, ${inspection.checkinLongitude!.toStringAsFixed(6)}'),
               if (inspection.checkinAddress != null)
-                _InfoRow(Icons.home_rounded, 'पता', inspection.checkinAddress!),
+                _InfoRow(Icons.home_rounded, context.tr('address'), inspection.checkinAddress!),
             ]),
           if (inspection.checkoutTime != null) ...[
             const SizedBox(height: 12),
-            _buildInfoCard('चेक-आउट विवरण', [
-              _InfoRow(Icons.access_time_rounded, 'समय', _formatDateTime(inspection.checkoutTime!)),
+            _buildInfoCard(context.tr('checkout_details'), [
+              _InfoRow(Icons.access_time_rounded, context.tr('time'), _formatDateTime(inspection.checkoutTime!)),
               if (inspection.checkoutLatitude != null)
-                _InfoRow(Icons.location_on_rounded, 'GPS',
+                _InfoRow(Icons.location_on_rounded, context.tr('gps'),
                     '${inspection.checkoutLatitude!.toStringAsFixed(6)}, ${inspection.checkoutLongitude!.toStringAsFixed(6)}'),
               if (inspection.distanceCoveredKm != null)
-                _InfoRow(Icons.directions_rounded, 'दूरी', '${inspection.distanceCoveredKm!.toStringAsFixed(2)} km'),
+                _InfoRow(Icons.directions_rounded, context.tr('distance'), '${inspection.distanceCoveredKm!.toStringAsFixed(2)} km'),
             ]),
+          ],
+          if (inspection.mapImagePath != null && inspection.mapImagePath!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.tr('inspection_location_map'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primaryColor),
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      '${AppConstants.baseUrl.replaceAll('/api/v1', '')}/${inspection.mapImagePath}',
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 200,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.broken_image_rounded, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
           const SizedBox(height: 20),
           if (user?.isJE == true || user?.isAdmin == true) ...[
@@ -303,14 +346,14 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
               ElevatedButton.icon(
                 onPressed: _gpsLoading ? null : () => _handleCheckIn(inspection, provider),
                 icon: const Icon(Icons.login_rounded),
-                label: const Text('GPS चेक-इन करें'),
+                label: Text(context.tr('gps_checkin')),
                 style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
               ),
             if (inspection.isCheckedIn)
               ElevatedButton.icon(
                 onPressed: _gpsLoading ? null : () => _handleCheckOut(inspection, provider),
                 icon: const Icon(Icons.logout_rounded),
-                label: const Text('GPS चेक-आउट करें'),
+                label: Text(context.tr('gps_checkout_action')),
                 style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
               ),
           ],
@@ -327,12 +370,12 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.photo_library_outlined, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 12),
-          const Text('कोई फ़ोटो नहीं', style: TextStyle(color: Colors.grey, fontSize: 16)),
+          Text(context.tr('no_photos'), style: const TextStyle(color: Colors.grey, fontSize: 16)),
           const SizedBox(height: 8),
           ElevatedButton.icon(
             onPressed: () => Navigator.pushNamed(context, '/photos/upload', arguments: inspection.id),
             icon: const Icon(Icons.camera_alt_rounded),
-            label: const Text('फ़ोटो जोड़ें'),
+            label: Text(context.tr('add_photo')),
           ),
         ]),
       );
@@ -353,10 +396,10 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3), style: BorderStyle.solid),
               ),
-              child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.add_photo_alternate_rounded, size: 40, color: AppTheme.primaryColor),
-                SizedBox(height: 8),
-                Text('फ़ोटो जोड़ें', style: TextStyle(color: AppTheme.primaryColor, fontSize: 12)),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.add_photo_alternate_rounded, size: 40, color: AppTheme.primaryColor),
+                const SizedBox(height: 8),
+                Text(context.tr('add_photo'), style: const TextStyle(color: AppTheme.primaryColor, fontSize: 12)),
               ]),
             ),
           );
@@ -365,7 +408,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         return ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Image.network(
-            '${ApiService().toString()}/${photo.thumbnailPath ?? photo.filePath}',
+            '${AppConstants.baseUrl.replaceAll('/api/v1', '')}/${photo.thumbnailPath ?? photo.filePath}',
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => Container(
               color: Colors.grey.shade200,
@@ -403,10 +446,10 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
 
   Widget _buildWorkflowStepper(String status) {
     final steps = [
-      ('मसौदा', 'draft', Icons.edit_rounded),
-      ('जमा किया', 'submitted', Icons.send_rounded),
-      ('सत्यापित', 'verified', Icons.verified_rounded),
-      ('स्वीकृत', 'approved', Icons.check_circle_rounded),
+      (context.tr('draft'), 'draft', Icons.edit_rounded),
+      (context.tr('submitted'), 'submitted', Icons.send_rounded),
+      (context.tr('verified'), 'verified', Icons.verified_rounded),
+      (context.tr('approved'), 'approved', Icons.check_circle_rounded),
     ];
     final statusOrder = ['draft', 'submitted', 'verified', 'approved'];
     final currentIdx = statusOrder.indexOf(status);
@@ -420,7 +463,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('कार्यप्रवाह स्थिति', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor)),
+          Text(context.tr('workflow_status'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor)),
           const SizedBox(height: 16),
           ...steps.asMap().entries.map((e) {
             final idx = e.key;
@@ -465,26 +508,26 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('अनुमोदन कार्रवाई', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor)),
+          Text(context.tr('approval_action'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor)),
           const SizedBox(height: 16),
           TextField(
             controller: remarksCtrl,
             maxLines: 3,
-            decoration: const InputDecoration(hintText: 'टिप्पणी दर्ज करें (वैकल्पिक)', labelText: 'टिप्पणी'),
+            decoration: InputDecoration(hintText: context.tr('enter_remarks_optional'), labelText: context.tr('remarks')),
           ),
           const SizedBox(height: 16),
           Row(children: [
             Expanded(child: ElevatedButton.icon(
               onPressed: () => provider.approveInspection(inspection.id, 'approved', remarksCtrl.text, null),
               icon: const Icon(Icons.check_rounded),
-              label: const Text('स्वीकार करें'),
+              label: Text(context.tr('approve')),
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
             )),
             const SizedBox(width: 12),
             Expanded(child: OutlinedButton.icon(
               onPressed: () => provider.approveInspection(inspection.id, 'rejected', remarksCtrl.text, null),
               icon: const Icon(Icons.close_rounded),
-              label: const Text('अस्वीकार करें'),
+              label: Text(context.tr('reject')),
               style: OutlinedButton.styleFrom(foregroundColor: AppTheme.errorColor, side: const BorderSide(color: AppTheme.errorColor)),
             )),
           ]),
@@ -492,7 +535,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           SizedBox(width: double.infinity, child: OutlinedButton.icon(
             onPressed: () => provider.approveInspection(inspection.id, 'forwarded', remarksCtrl.text, null),
             icon: const Icon(Icons.forward_rounded),
-            label: const Text('आगे भेजें'),
+            label: Text(context.tr('forward')),
           )),
         ],
       ),
@@ -511,21 +554,21 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           Expanded(child: ElevatedButton.icon(
             onPressed: () => _handleSubmit(inspection, provider),
             icon: const Icon(Icons.send_rounded, size: 18),
-            label: const Text('निरीक्षण जमा करें (Submit Inspection)'),
+            label: Text('${context.tr('submit_inspection_btn')} (${context.tr('submit')})'),
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
           )),
         ] else ...[
           Expanded(child: ElevatedButton.icon(
             onPressed: () => _generateReport(inspection),
             icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-            label: const Text('PDF रिपोर्ट'),
+            label: Text(context.tr('pdf_report')),
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
           )),
           const SizedBox(width: 8),
           Expanded(child: OutlinedButton.icon(
             onPressed: () => _shareReport(inspection),
             icon: const Icon(Icons.share_rounded, size: 18),
-            label: const Text('शेयर करें'),
+            label: Text(context.tr('share')),
           )),
         ],
       ]),
@@ -587,7 +630,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         await provider.checkIn(inspection.id, position.latitude, position.longitude, null);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ चेक-इन सफल!'), backgroundColor: AppTheme.successColor),
+            SnackBar(content: Text(context.tr('checkin_success')), backgroundColor: AppTheme.successColor),
           );
         }
       }
@@ -603,9 +646,14 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       if (position != null) {
         final result = await provider.checkOut(inspection.id, position.latitude, position.longitude, null);
         if (mounted && result != null) {
+          final isHindi = context.read<LanguageProvider>().isHindi;
+          final distStr = result['distance_km']?.toStringAsFixed(2) ?? 'N/A';
+          final msg = isHindi 
+              ? '✅ चेक-आउट! दूरी: $distStr किमी' 
+              : '✅ Checked out! Distance: $distStr km';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ चेक-आउट! दूरी: ${result['distance_km']?.toStringAsFixed(2) ?? 'N/A'} km'),
+              content: Text(msg),
               backgroundColor: AppTheme.successColor,
             ),
           );
@@ -628,11 +676,11 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('निरीक्षण जमा करें?'),
-        content: const Text('क्या आप इस निरीक्षण को अनुमोदन के लिए जमा करना चाहते हैं?'),
+        title: Text(context.tr('submit_inspection_confirm_title')),
+        content: Text(context.tr('submit_inspection_confirm_body')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('रद्द करें')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('जमा करें')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.tr('cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(context.tr('submit'))),
         ],
       ),
     );
@@ -640,44 +688,48 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       final success = await provider.submitInspection(inspection.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(success ? '✅ जमा सफल!' : '❌ जमा विफल'), backgroundColor: success ? AppTheme.successColor : AppTheme.errorColor),
+          SnackBar(
+            content: Text(success ? context.tr('submit_success') : context.tr('submit_failed')),
+            backgroundColor: success ? AppTheme.successColor : AppTheme.errorColor,
+          ),
         );
       }
     }
   }
 
   Future<void> _generateReport(InspectionModel inspection) async {
-    try {
-      await ApiService().generateReport(inspection.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ PDF रिपोर्ट तैयार!'), backgroundColor: AppTheme.successColor),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ रिपोर्ट विफल: $e'), backgroundColor: AppTheme.errorColor),
-        );
-      }
-    }
+    Navigator.pushNamed(
+      context,
+      '/reports/preview',
+      arguments: {
+        'inspectionId': inspection.id,
+        'title': inspection.title,
+      },
+    );
   }
 
   void _shareReport(InspectionModel inspection) {
-    Share.share('Gram Nirikshan Report\nInspection: ${inspection.inspectionId}\n${inspection.title}');
+    Navigator.pushNamed(
+      context,
+      '/reports/preview',
+      arguments: {
+        'inspectionId': inspection.id,
+        'title': inspection.title,
+      },
+    );
   }
 
   void _showOptions(InspectionModel inspection, UserModel? user) {
     showModalBottomSheet(context: context, builder: (_) => SafeArea(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(leading: const Icon(Icons.picture_as_pdf_rounded), title: const Text('PDF जनरेट करें'),
+        ListTile(leading: const Icon(Icons.picture_as_pdf_rounded), title: Text(context.tr('generate_pdf')),
             onTap: () { Navigator.pop(context); _generateReport(inspection); }),
-        ListTile(leading: const Icon(Icons.share_rounded), title: const Text('शेयर करें'),
+        ListTile(leading: const Icon(Icons.share_rounded), title: Text(context.tr('share')),
             onTap: () { Navigator.pop(context); _shareReport(inspection); }),
         if (inspection.panchayat?.latitude != null)
           ListTile(
             leading: const Icon(Icons.map_rounded),
-            title: const Text('मानचित्र पर देखें'),
+            title: Text(context.tr('view_on_map')),
             onTap: () {
               Navigator.pop(context);
               final lat = inspection.panchayat!.latitude!;
@@ -685,13 +737,60 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
               launchUrl(Uri.parse('https://maps.google.com/?q=$lat,$lng'));
             },
           ),
+        if (user?.isAdmin == true)
+          ListTile(
+            leading: const Icon(Icons.delete_forever_rounded, color: Colors.red),
+            title: Text(context.tr('delete_inspection'), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            onTap: () {
+              Navigator.pop(context);
+              _confirmDelete(inspection);
+            },
+          ),
       ]),
     ));
   }
 
+  Future<void> _confirmDelete(InspectionModel inspection) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(context.tr('delete_confirm_title')),
+        content: Text(context.tr('delete_confirm_body')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(context.tr('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
+            child: Text(context.tr('delete'), style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (mounted) {
+        final provider = context.read<InspectionProvider>();
+        final ok = await provider.deleteInspection(inspection.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(ok ? context.tr('delete_success') : context.tr('delete_failed')),
+              backgroundColor: ok ? AppTheme.successColor : AppTheme.errorColor,
+            ),
+          );
+          if (ok) {
+            Navigator.pop(context); // Go back to list
+          }
+        }
+      }
+    }
+  }
+
   String _getStatusLabel(String status) {
-    const m = {'draft': 'मसौदा', 'submitted': 'जमा', 'verified': 'सत्यापित', 'approved': 'स्वीकृत', 'rejected': 'अस्वीकृत'};
-    return m[status] ?? status;
+    return context.tr(status);
   }
 
   String _formatDate(DateTime dt) => '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
@@ -708,9 +807,9 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'समीक्षा एवं अनुमोदन इतिहास (Approval History)',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primaryColor),
+          Text(
+            context.tr('approval_history'),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primaryColor),
           ),
           const SizedBox(height: 12),
           ListView.builder(
@@ -736,7 +835,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'स्तर (Level): ${a.level}',
+                          '${context.tr('level')}: ${a.level}',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                         Container(
@@ -758,19 +857,19 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'अधिकारी: ${a.approver?.nameHindi ?? a.approver?.name ?? 'अज्ञात अधिकारी'} (${a.approver?.designation ?? 'N/A'})',
+                      '${context.tr('officer')}: ${a.approver?.nameHindi ?? a.approver?.name ?? context.tr('unknown_officer')} (${a.approver?.designation ?? 'N/A'})',
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                     ),
                     if (a.remarks != null && a.remarks!.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
-                        'टिप्पणी: ${a.remarks}',
+                        '${context.tr('remarks')}: ${a.remarks}',
                         style: const TextStyle(fontSize: 13, color: Colors.black54),
                       ),
                     ],
                     const SizedBox(height: 6),
                     Text(
-                      'दिनांक: ${_formatDateTime(a.createdAt)}',
+                      '${context.tr('date')}: ${_formatDateTime(a.createdAt)}',
                       style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ],
@@ -784,13 +883,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   }
 
   String _getApprovalActionLabel(String action) {
-    const labels = {
-      'pending': 'लंबित',
-      'approved': 'स्वीकृत',
-      'rejected': 'अस्वीकृत',
-      'forwarded': 'अग्रेषित / जमा किया',
-    };
-    return labels[action] ?? action.toUpperCase();
+    return context.tr(action);
   }
 
   Color _getApprovalActionColor(String action) {

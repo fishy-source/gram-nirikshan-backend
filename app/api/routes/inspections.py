@@ -365,3 +365,27 @@ async def get_inspection_approvals(
     )
     approvals = result.scalars().all()
     return [ApprovalResponse.model_validate(a) for a in approvals]
+
+
+@router.delete("/{inspection_id}", response_model=MessageResponse)
+async def delete_inspection(
+    inspection_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete an inspection. Restricted to Admin."""
+    if current_user.role.value != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Admin can delete inspections."
+        )
+
+    result = await db.execute(select(Inspection).where(Inspection.id == inspection_id))
+    inspection = result.scalar_one_or_none()
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+
+    await db.delete(inspection)
+    await db.commit()
+
+    return MessageResponse(message="Inspection deleted successfully", success=True)

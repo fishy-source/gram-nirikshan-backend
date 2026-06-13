@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/services/api_service.dart';
@@ -18,8 +20,10 @@ import 'presentation/screens/inspections/new_inspection_screen.dart';
 import 'presentation/screens/ai_assistant/ai_assistant_screen.dart';
 import 'presentation/screens/photos/photo_upload_screen.dart';
 import 'presentation/screens/reports/reports_screen.dart';
+import 'presentation/screens/reports/pdf_preview_screen.dart';
 import 'presentation/screens/map/map_screen.dart';
 import 'presentation/screens/calendar/calendar_screen.dart';
+import 'presentation/providers/language_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +48,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
         ChangeNotifierProvider(create: (_) => InspectionProvider()),
+        ChangeNotifierProvider(create: (_) => LanguageProvider()),
       ],
       child: const GramNirikshanApp(),
     ),
@@ -68,7 +73,7 @@ class _GramNirikshanAppState extends State<GramNirikshanApp> {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: _isDark ? ThemeMode.dark : ThemeMode.light,
-      locale: const Locale('hi', 'IN'),
+      locale: context.watch<LanguageProvider>().locale,
       supportedLocales: const [Locale('hi', 'IN'), Locale('en', 'US')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -92,6 +97,15 @@ class _GramNirikshanAppState extends State<GramNirikshanApp> {
         if (settings.name == '/inspections/detail') {
           final id = settings.arguments as String;
           return MaterialPageRoute(builder: (_) => InspectionDetailScreen(inspectionId: id));
+        }
+        if (settings.name == '/reports/preview') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (_) => PdfPreviewScreen(
+              inspectionId: args['inspectionId'] as String,
+              title: args['title'] as String,
+            ),
+          );
         }
         return null;
       },
@@ -213,11 +227,11 @@ class _HomeScreenState extends State<HomeScreen> {
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
         backgroundColor: Colors.white,
         elevation: 8,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: 'डैशबोर्ड'),
-          NavigationDestination(icon: Icon(Icons.assignment_outlined), selectedIcon: Icon(Icons.assignment_rounded), label: 'निरीक्षण'),
-          NavigationDestination(icon: Icon(Icons.smart_toy_outlined), selectedIcon: Icon(Icons.smart_toy_rounded), label: 'AI सहायक'),
-          NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'प्रोफ़ाइल'),
+        destinations: [
+          NavigationDestination(icon: const Icon(Icons.dashboard_outlined), selectedIcon: const Icon(Icons.dashboard_rounded), label: context.tr('dashboard')),
+          NavigationDestination(icon: const Icon(Icons.assignment_outlined), selectedIcon: const Icon(Icons.assignment_rounded), label: context.tr('inspections')),
+          NavigationDestination(icon: const Icon(Icons.smart_toy_outlined), selectedIcon: const Icon(Icons.smart_toy_rounded), label: context.tr('ai_assistant')),
+          NavigationDestination(icon: const Icon(Icons.person_outline_rounded), selectedIcon: const Icon(Icons.person_rounded), label: context.tr('profile')),
         ],
       ),
     );
@@ -231,7 +245,7 @@ class _ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
     return Scaffold(
-      appBar: AppBar(title: const Text('प्रोफ़ाइल')),
+      appBar: AppBar(title: Text(context.tr('profile'))),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         Center(
           child: CircleAvatar(
@@ -251,12 +265,80 @@ class _ProfileScreen extends StatelessWidget {
         const SizedBox(height: 16),
         Center(child: Text(user?.name ?? '', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.primaryColor))),
         Center(child: Text(user?.designation ?? user?.role.toUpperCase() ?? '', style: const TextStyle(color: Colors.grey))),
-        const SizedBox(height: 24),
-        _ProfileTile(Icons.badge_rounded, 'कर्मचारी ID', user?.employeeId ?? 'N/A'),
-        _ProfileTile(Icons.phone_rounded, 'मोबाइल', user?.mobile ?? 'N/A'),
-        _ProfileTile(Icons.email_rounded, 'ईमेल', user?.email ?? 'N/A'),
-        _ProfileTile(Icons.location_city_rounded, 'जिला', user?.district ?? 'N/A'),
-        _ProfileTile(Icons.business_rounded, 'ब्लॉक', user?.block ?? 'N/A'),
+        const SizedBox(height: 16),
+        
+        // Language Selector Card
+        Card(
+          elevation: 1.5,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.translate_rounded, color: AppTheme.primaryColor, size: 20),
+                    SizedBox(width: 8),
+                    Text('भाषा / Language', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50))),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: context.watch<LanguageProvider>().isHindi ? 'hi' : 'en',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor, fontSize: 13),
+                      icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primaryColor),
+                      onChanged: (String? val) {
+                        if (val != null) {
+                          context.read<LanguageProvider>().setLanguage(val);
+                        }
+                      },
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'hi',
+                          child: Text('हिन्दी'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'en',
+                          child: Text('English'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        // Share App Card
+        Card(
+          elevation: 1.5,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: Colors.white,
+          child: ListTile(
+            leading: const Icon(Icons.share_rounded, color: AppTheme.primaryColor),
+            title: Text(context.tr('share_app'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50))),
+            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+            onTap: () => _showShareAppBottomSheet(context),
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        _ProfileTile(Icons.badge_rounded, context.tr('employee_id'), user?.employeeId ?? 'N/A'),
+        _ProfileTile(Icons.phone_rounded, context.tr('mobile'), user?.mobile ?? 'N/A'),
+        _ProfileTile(Icons.email_rounded, context.tr('email'), user?.email ?? 'N/A'),
+        _ProfileTile(Icons.location_city_rounded, context.tr('district'), user?.district ?? 'N/A'),
+        _ProfileTile(Icons.business_rounded, context.tr('block'), user?.block ?? 'N/A'),
         const SizedBox(height: 24),
         ElevatedButton.icon(
           onPressed: () async {
@@ -264,10 +346,85 @@ class _ProfileScreen extends StatelessWidget {
             if (context.mounted) Navigator.pushReplacementNamed(context, '/login');
           },
           icon: const Icon(Icons.logout_rounded),
-          label: const Text('लॉगआउट'),
+          label: Text(context.tr('logout')),
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
         ),
       ]),
+    );
+  }
+
+  void _showShareAppBottomSheet(BuildContext context) {
+    final isHindi = context.read<LanguageProvider>().isHindi;
+    final shareText = context.read<LanguageProvider>().translate('share_app_text');
+    
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  isHindi ? 'ऐप शेयर करें' : 'Share App',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: const Icon(Icons.share_rounded, color: AppTheme.primaryColor),
+                  title: Text(isHindi ? 'सिस्टम शेयर (Native Share)' : 'System Share'),
+                  subtitle: Text(isHindi ? 'फ़ोन के शेयर डायलॉग से भेजें' : 'Share via device settings'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    final box = context.findRenderObject() as RenderBox?;
+                    Share.share(
+                      shareText,
+                      sharePositionOrigin: box != null ? (box.localToGlobal(Offset.zero) & box.size) : null,
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.chat_bubble_rounded, color: Colors.green),
+                  title: Text(isHindi ? 'व्हाट्सएप पर शेयर करें' : 'Share on WhatsApp'),
+                  subtitle: Text(isHindi ? 'व्हाट्सएप ऐप सीधे खोलें' : 'Open WhatsApp directly'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final whatsappUrl = Uri.parse("https://api.whatsapp.com/send?text=${Uri.encodeComponent(shareText)}");
+                    try {
+                      await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(isHindi ? 'व्हाट्सएप खोलने में विफल' : 'Failed to open WhatsApp')),
+                      );
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.copy_rounded, color: AppTheme.secondaryColor),
+                  title: Text(isHindi ? 'लिंक कॉपी करें' : 'Copy Link'),
+                  subtitle: Text(isHindi ? 'क्लिपबोर्ड पर सेव करें' : 'Copy to clipboard'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await Clipboard.setData(ClipboardData(text: shareText));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(isHindi ? 'लिंक क्लिपबोर्ड पर कॉपी किया गया!' : 'Link copied to clipboard!'),
+                          backgroundColor: AppTheme.successColor,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

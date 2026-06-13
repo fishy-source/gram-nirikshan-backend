@@ -7,6 +7,7 @@ import 'package:pin_code_fields/pin_code_fields.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/language_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -75,9 +76,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       child: const Icon(Icons.domain_verification_rounded, size: 54, color: Colors.white),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'ग्राम निरीक्षण',
-                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold,
+                    Text(
+                      context.tr('app_title'),
+                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold,
                           color: Colors.white, fontFamily: 'Poppins'),
                     ),
                     const Text(
@@ -85,10 +86,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       style: TextStyle(fontSize: 16, color: Colors.white70, fontFamily: 'Poppins'),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'ग्राम पंचायत निरीक्षण एवं निगरानी प्रणाली',
+                    Text(
+                      context.tr('app_subtitle'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: Colors.white54, fontFamily: 'Poppins'),
+                      style: const TextStyle(fontSize: 13, color: Colors.white54, fontFamily: 'Poppins'),
                     ),
                     const SizedBox(height: 48),
 
@@ -109,15 +110,17 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _otpSent ? 'OTP दर्ज करें' : 'लॉगिन करें',
+                              _otpSent ? context.tr('enter_otp') : context.tr('login'),
                               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold,
                                   color: AppTheme.primaryColor),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               _otpSent
-                                  ? '${_mobileController.text} पर OTP भेजा गया'
-                                  : 'अपना मोबाइल नंबर दर्ज करें',
+                                  ? (context.watch<LanguageProvider>().isHindi 
+                                      ? '${_mobileController.text} पर OTP भेजा गया' 
+                                      : 'OTP sent to ${_mobileController.text}')
+                                  : context.tr('enter_mobile'),
                               style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                             ),
                             const SizedBox(height: 24),
@@ -156,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                         ? const SizedBox(width: 24, height: 24,
                                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                         : Text(
-                                            _otpSent ? 'सत्यापित करें' : 'OTP भेजें',
+                                            _otpSent ? context.tr('verify') : context.tr('send_otp'),
                                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                                           ),
                                   ),
@@ -164,7 +167,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                     const SizedBox(height: 12),
                                     TextButton(
                                       onPressed: () => setState(() => _otpSent = false),
-                                      child: const Text('नंबर बदलें', style: TextStyle(color: AppTheme.secondaryColor)),
+                                      child: Text(context.tr('change_number'), style: const TextStyle(color: AppTheme.secondaryColor)),
                                     ),
                                   ],
                                 ],
@@ -175,8 +178,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       ),
                     ),
                     const SizedBox(height: 32),
-                    const Text('भारत सरकार | ग्राम विकास विभाग',
-                        style: TextStyle(color: Colors.white38, fontSize: 12)),
+                    Text(context.tr('gov_footer'),
+                        style: const TextStyle(color: Colors.white38, fontSize: 12)),
                     const SizedBox(height: 8),
                     Text('Version ${AppConstants.appVersion}',
                         style: const TextStyle(color: Colors.white24, fontSize: 11)),
@@ -194,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('मोबाइल नंबर', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppTheme.primaryColor)),
+        Text(context.tr('mobile'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppTheme.primaryColor)),
         const SizedBox(height: 8),
         TextFormField(
           controller: _mobileController,
@@ -209,7 +212,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             suffixIcon: const Icon(Icons.phone_android_rounded, color: AppTheme.primaryColor),
           ),
           validator: (v) {
-            if (v == null || v.length != 10) return 'कृपया 10 अंकों का मोबाइल नंबर दर्ज करें';
+            if (v == null || v.length != 10) return context.tr('invalid_mobile_err');
             return null;
           },
         ),
@@ -221,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('OTP दर्ज करें', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppTheme.primaryColor)),
+        Text(context.tr('enter_otp'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppTheme.primaryColor)),
         const SizedBox(height: 12),
         PinCodeTextField(
           appContext: context,
@@ -258,7 +261,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     } else {
       if (_otp.length < 6) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('कृपया 6 अंकों का OTP दर्ज करें')),
+          SnackBar(content: Text(context.tr('invalid_otp_err'))),
         );
         return;
       }

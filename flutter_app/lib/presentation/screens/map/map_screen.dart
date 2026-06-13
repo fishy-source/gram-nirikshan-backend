@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../providers/inspection_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../../data/models/models.dart';
 
 class MapScreen extends StatefulWidget {
@@ -74,16 +75,19 @@ class _MapScreenState extends State<MapScreen> {
       }
 
       // Add markers for photos with coordinates
+      final isHindi = context.read<LanguageProvider>().isHindi;
       for (final photo in ins.photos) {
         if (photo.latitude != null && photo.longitude != null) {
+          final photoTitle = isHindi ? 'फ़ोटो: ${photo.caption ?? "निरीक्षण फ़ोटो"}' : 'Photo: ${photo.caption ?? "Inspection Photo"}';
+          final insSnippet = isHindi ? 'निरीक्षण: ${ins.inspectionId}' : 'Inspection: ${ins.inspectionId}';
           markers.add(
             Marker(
               markerId: MarkerId('photo_${photo.id}'),
               position: LatLng(photo.latitude!, photo.longitude!),
               icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan),
               infoWindow: InfoWindow(
-                title: 'फ़ोटो: ${photo.caption ?? "निरीक्षण फ़ोटो"}',
-                snippet: 'निरीक्षण: ${ins.inspectionId}',
+                title: photoTitle,
+                snippet: insSnippet,
               ),
               onTap: () {
                 setState(() {
@@ -117,7 +121,7 @@ class _MapScreenState extends State<MapScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('निरीक्षण नक्शा', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(context.tr('inspection_map'), style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -173,7 +177,9 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'ग्राम पंचायत: ${_selectedInspection!.panchayat?.nameHindi ?? _selectedInspection!.panchayat?.name ?? "N/A"}',
+                        context.read<LanguageProvider>().isHindi 
+                            ? 'ग्राम पंचायत: ${_selectedInspection!.panchayat?.nameHindi ?? _selectedInspection!.panchayat?.name ?? "N/A"}' 
+                            : 'Gram Panchayat: ${_selectedInspection!.panchayat?.name ?? _selectedInspection!.panchayat?.nameHindi ?? "N/A"}',
                         style: const TextStyle(color: Colors.grey, fontSize: 13),
                       ),
                       const SizedBox(height: 12),
@@ -187,7 +193,7 @@ class _MapScreenState extends State<MapScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              AppConstants.statusLabels[_selectedInspection!.status] ?? _selectedInspection!.status.toUpperCase(),
+                              context.tr(_selectedInspection!.status),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -203,7 +209,7 @@ class _MapScreenState extends State<MapScreen> {
                                 arguments: _selectedInspection!.id,
                               );
                             },
-                            child: const Text('विवरण देखें', style: TextStyle(fontWeight: FontWeight.bold)),
+                            child: Text(context.tr('view_details'), style: const TextStyle(fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),

@@ -6,6 +6,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../../data/models/models.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -89,17 +90,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ),
-        title: const Text('ग्राम निरीक्षण', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(context.tr('app_title'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       actions: [
         IconButton(icon: const Icon(Icons.notifications_outlined, color: Colors.white), onPressed: () {}),
         PopupMenuButton(
           icon: const Icon(Icons.more_vert, color: Colors.white),
           itemBuilder: (_) => [
-            PopupMenuItem(child: const Text('Profile'), onTap: () {}),
-            PopupMenuItem(child: const Text('Settings'), onTap: () {}),
+            PopupMenuItem(child: Text(context.tr('profile')), onTap: () {}),
+            PopupMenuItem(child: Text(context.tr('settings')), onTap: () {}),
             PopupMenuItem(
-              child: const Text('Logout', style: TextStyle(color: Colors.red)),
+              child: Text(context.tr('logout'), style: const TextStyle(color: Colors.red)),
               onTap: () => context.read<AuthProvider>().logout(),
             ),
           ],
@@ -131,7 +132,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('नमस्ते, ${user?.name ?? "User"}!',
+                Text(context.tr('welcome_back').replaceAll('{name}', user?.name ?? "User"),
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                 const SizedBox(height: 2),
                 Text(user?.designation ?? user?.role.toUpperCase() ?? '',
@@ -148,12 +149,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildStatsGrid(DashboardStats stats) {
     final items = [
-      _StatItem('कुल निरीक्षण', stats.totalInspections.toString(), Icons.assignment_rounded, AppTheme.primaryColor),
-      _StatItem('इस माह', stats.thisMonthInspections.toString(), Icons.calendar_month_rounded, AppTheme.infoColor),
-      _StatItem('स्वीकृत', stats.approvedCount.toString(), Icons.check_circle_rounded, AppTheme.successColor),
-      _StatItem('लंबित', stats.submittedCount.toString(), Icons.pending_rounded, AppTheme.warningColor),
-      _StatItem('ग्राम पंचायत', stats.totalPanchayats.toString(), Icons.location_city_rounded, AppTheme.secondaryColor),
-      _StatItem('अभियंता', stats.totalEngineers.toString(), Icons.engineering_rounded, AppTheme.accentColor),
+      _StatItem(context.tr('total_inspections'), stats.totalInspections.toString(), Icons.assignment_rounded, AppTheme.primaryColor),
+      _StatItem(context.tr('this_month'), stats.thisMonthInspections.toString(), Icons.calendar_month_rounded, AppTheme.infoColor),
+      _StatItem(context.tr('approved'), stats.approvedCount.toString(), Icons.check_circle_rounded, AppTheme.successColor),
+      _StatItem(context.tr('submitted'), stats.submittedCount.toString(), Icons.pending_rounded, AppTheme.warningColor),
+      _StatItem(context.tr('panchayats'), stats.totalPanchayats.toString(), Icons.location_city_rounded, AppTheme.secondaryColor),
+      _StatItem(context.tr('engineers'), stats.totalEngineers.toString(), Icons.engineering_rounded, AppTheme.accentColor),
     ];
     return GridView.count(
       crossAxisCount: 2,
@@ -199,12 +200,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildStatusChart(DashboardStats stats) {
     final sections = [
-      PieChartSectionData(value: stats.approvedCount.toDouble(), color: AppTheme.approvedColor, title: 'स्वीकृत', radius: 60, titleStyle: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
-      PieChartSectionData(value: stats.submittedCount.toDouble(), color: AppTheme.submittedColor, title: 'जमा', radius: 55),
-      PieChartSectionData(value: stats.draftCount.toDouble(), color: AppTheme.draftColor, title: 'मसौदा', radius: 50),
-      PieChartSectionData(value: stats.rejectedCount.toDouble(), color: AppTheme.rejectedColor, title: 'अस्वीकृत', radius: 50),
+      PieChartSectionData(value: stats.approvedCount.toDouble(), color: AppTheme.approvedColor, title: context.tr('approved'), radius: 60, titleStyle: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+      PieChartSectionData(value: stats.submittedCount.toDouble(), color: AppTheme.submittedColor, title: context.tr('submitted'), radius: 55, titleStyle: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+      PieChartSectionData(value: stats.draftCount.toDouble(), color: AppTheme.draftColor, title: context.tr('draft'), radius: 50, titleStyle: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+      PieChartSectionData(value: stats.rejectedCount.toDouble(), color: AppTheme.rejectedColor, title: context.tr('rejected'), radius: 50, titleStyle: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
     ].where((s) => s.value > 0).toList();
-
+    
     if (sections.isEmpty) return const SizedBox.shrink();
 
     return Container(
@@ -216,7 +217,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('निरीक्षण स्थिति', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+          Text(context.tr('status_chart'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
           const SizedBox(height: 16),
           SizedBox(
             height: 180,
@@ -232,17 +233,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
-      _QuickAction('नया निरीक्षण', Icons.add_circle_rounded, AppTheme.primaryColor, '/inspections/new'),
-      _QuickAction('कैलेंडर', Icons.calendar_today_rounded, AppTheme.infoColor, '/calendar'),
-      _QuickAction('AI सहायक', Icons.smart_toy_rounded, AppTheme.accentColor, '/ai-assistant'),
-      _QuickAction('नक्शा', Icons.map_rounded, AppTheme.successColor, '/map'),
-      _QuickAction('रिपोर्ट देखें', Icons.picture_as_pdf_rounded, AppTheme.errorColor, '/reports'),
-      _QuickAction('फ़ोटो अपलोड', Icons.camera_alt_rounded, AppTheme.secondaryColor, '/photos'),
+      _QuickAction(context.tr('new_inspection'), Icons.add_circle_rounded, AppTheme.primaryColor, '/inspections/new'),
+      _QuickAction(context.tr('calendar'), Icons.calendar_today_rounded, AppTheme.infoColor, '/calendar'),
+      _QuickAction(context.tr('ai_assistant'), Icons.smart_toy_rounded, AppTheme.accentColor, '/ai-assistant'),
+      _QuickAction(context.tr('map'), Icons.map_rounded, AppTheme.successColor, '/map'),
+      _QuickAction(context.tr('view_reports'), Icons.picture_as_pdf_rounded, AppTheme.errorColor, '/reports'),
+      _QuickAction(context.tr('photo_upload'), Icons.camera_alt_rounded, AppTheme.secondaryColor, '/photos'),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('त्वरित क्रियाएं', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50))),
+        Text(context.tr('quick_actions'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50))),
         const SizedBox(height: 12),
         GridView.count(
           crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
@@ -285,7 +286,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('हाल की गतिविधि', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50))),
+        Text(context.tr('recent_activity'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50))),
         const SizedBox(height: 12),
         GestureDetector(
           onTap: () => Navigator.pushNamed(context, '/inspections'),
@@ -295,11 +296,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: Colors.white, borderRadius: BorderRadius.circular(16),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8)],
             ),
-            child: const Center(
+            child: Center(
               child: Column(children: [
-                Icon(Icons.history_rounded, size: 48, color: AppTheme.primaryColor),
-                SizedBox(height: 8),
-                Text('निरीक्षण सूची देखने के लिए यहाँ टैप करें', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
+                const Icon(Icons.history_rounded, size: 48, color: AppTheme.primaryColor),
+                const SizedBox(height: 8),
+                Text(context.tr('tap_to_view_inspections'), style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
               ]),
             ),
           ),

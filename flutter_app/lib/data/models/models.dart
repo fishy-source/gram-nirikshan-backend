@@ -126,6 +126,10 @@ class InspectionModel {
   final PanchayatModel? panchayat;
   final UserModel? engineer;
   final List<PhotoModel> photos;
+  final String? investigatorName;
+  final String? district;
+  final String? block;
+  final String? mapImagePath;
 
   InspectionModel({
     required this.id, required this.inspectionId, required this.panchayatId,
@@ -137,6 +141,7 @@ class InspectionModel {
     this.aiReportDraft,
     this.inspectionDate, this.submittedAt, this.approvedAt, required this.createdAt,
     this.panchayat, this.engineer, this.photos = const [],
+    this.investigatorName, this.district, this.block, this.mapImagePath,
   });
 
   factory InspectionModel.fromJson(Map<String, dynamic> json) => InspectionModel(
@@ -164,6 +169,10 @@ class InspectionModel {
         panchayat: json['panchayat'] != null ? PanchayatModel.fromJson(json['panchayat']) : null,
         engineer: json['engineer'] != null ? UserModel.fromJson(json['engineer']) : null,
         photos: (json['photos'] as List<dynamic>?)?.map((p) => PhotoModel.fromJson(p)).toList() ?? [],
+        investigatorName: json['investigator_name'],
+        district: json['district'],
+        block: json['block'],
+        mapImagePath: json['map_image_path'],
       );
 
   bool get isDraft => status == 'draft';

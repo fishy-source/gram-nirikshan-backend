@@ -108,6 +108,25 @@ class InspectionProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> deleteInspection(String id) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _api.deleteInspection(id);
+      _inspections.removeWhere((i) => i.id == id);
+      if (_selectedInspection?.id == id) _selectedInspection = null;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> submitInspection(String id) async {
     try {
       await _api.submitInspection(id);

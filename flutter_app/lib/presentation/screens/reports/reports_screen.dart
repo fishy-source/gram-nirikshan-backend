@@ -11,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/api_service.dart';
 import '../../providers/inspection_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../../data/models/models.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -40,7 +41,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('निरीक्षण रिपोर्ट सफलतापूर्वक बनाई गई!'), backgroundColor: AppTheme.successColor),
+            SnackBar(content: Text(context.tr('pdf_generated_success')), backgroundColor: AppTheme.successColor),
           );
         }
         // Refresh inspections list to update status
@@ -50,8 +51,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final isHindi = context.read<LanguageProvider>().isHindi;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('रिपोर्ट बनाने में विफल: $e'), backgroundColor: AppTheme.errorColor),
+          SnackBar(
+            content: Text(isHindi ? 'रिपोर्ट बनाने में विफल: $e' : 'Failed to generate report: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
         );
       }
     } finally {
@@ -128,8 +133,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
         if (await canLaunchUrl(url)) {
           await launchUrl(url, mode: LaunchMode.externalApplication);
         } else {
+          final isHindi = context.read<LanguageProvider>().isHindi;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('फ़ाइल खोलने में असमर्थ: ${result.message}'), backgroundColor: AppTheme.errorColor),
+            SnackBar(
+              content: Text(isHindi ? 'फ़ाइल खोलने में असमर्थ: ${result.message}' : 'Unable to open file: ${result.message}'),
+              backgroundColor: AppTheme.errorColor,
+            ),
           );
         }
       }
@@ -139,8 +148,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
         _generatingMap[inspectionId] = false;
       });
       if (mounted) {
+        final isHindi = context.read<LanguageProvider>().isHindi;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('रिपोर्ट खोलने या बनाने में विफल: $e'), backgroundColor: AppTheme.errorColor),
+          SnackBar(
+            content: Text(isHindi ? 'रिपोर्ट खोलने या बनाने में विफल: $e' : 'Failed to open or generate report: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
         );
       }
     }
@@ -148,19 +161,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _shareReportFile(String inspectionId, String title) async {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Row(
           children: [
-            SizedBox(
+            const SizedBox(
               width: 16,
               height: 16,
               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
             ),
-            SizedBox(width: 12),
-            Text('रिपोर्ट तैयार करके शेयर की जा रही है...'),
+            const SizedBox(width: 12),
+            Expanded(child: Text(context.tr('preparing_report_share'))),
           ],
         ),
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
       ),
     );
 
@@ -196,14 +209,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
       }
 
       // Share the downloaded actual PDF file
+      final isHindi = context.read<LanguageProvider>().isHindi;
+      final shareText = isHindi ? 'ग्राम निरीक्षण रिपोर्ट: $title' : 'Gram Inspection Report: $title';
       await Share.shareXFiles(
         [XFile(savePath)],
-        text: 'ग्राम निरीक्षण रिपोर्ट: $title',
+        text: shareText,
       );
     } catch (e) {
       if (mounted) {
+        final isHindi = context.read<LanguageProvider>().isHindi;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('शेयर करने में त्रुटि: $e'), backgroundColor: AppTheme.errorColor),
+          SnackBar(
+            content: Text(isHindi ? 'शेयर करने में त्रुटि: $e' : 'Error sharing: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
         );
       }
     }
@@ -217,7 +236,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: const Text('निरीक्षण रिपोर्ट देखें', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(context.tr('view_inspection_reports'), style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -226,13 +245,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: isLoading && inspections.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : inspections.isEmpty
-                ? const Center(
+                ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.description_outlined, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('कोई निरीक्षण सूची उपलब्ध नहीं है', style: TextStyle(color: Colors.grey)),
+                        const Icon(Icons.description_outlined, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text(context.tr('no_inspections_available'), style: const TextStyle(color: Colors.grey)),
                       ],
                     ),
                   )
@@ -284,7 +303,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'ग्राम पंचायत: ${ins.panchayat?.nameHindi ?? ins.panchayat?.name ?? "N/A"}',
+                                context.read<LanguageProvider>().isHindi 
+                                    ? 'ग्राम पंचायत: ${ins.panchayat?.nameHindi ?? ins.panchayat?.name ?? "N/A"}' 
+                                    : 'Gram Panchayat: ${ins.panchayat?.name ?? ins.panchayat?.nameHindi ?? "N/A"}',
                                 style: const TextStyle(color: Colors.grey, fontSize: 13),
                               ),
                               const SizedBox(height: 16),
@@ -294,7 +315,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 const SizedBox(height: 8),
                                 Center(
                                   child: Text(
-                                    'डाउनलोड हो रहा है... ${(progress * 100).toStringAsFixed(0)}%',
+                                    '${context.tr('downloading')} ${(progress * 100).toStringAsFixed(0)}%',
                                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                                   ),
                                 ),
@@ -312,7 +333,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                             )
                                           : const Icon(Icons.build, size: 16, color: Colors.white),
-                                      label: const Text('रिपोर्ट बनाएं', style: TextStyle(color: Colors.white, fontSize: 12)),
+                                      label: Text(context.tr('generate_report'), style: const TextStyle(color: Colors.white, fontSize: 12)),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppTheme.primaryColor,
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -324,14 +345,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                     // Button to Download and View
                                     IconButton(
                                       icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                                      tooltip: 'रिपोर्ट देखें',
+                                      tooltip: context.tr('view_reports'),
                                       onPressed: () => _downloadAndViewReport(ins.id, ins.title),
                                     ),
 
                                     // Button to share PDF file
                                     IconButton(
                                       icon: const Icon(Icons.share, color: AppTheme.secondaryColor),
-                                      tooltip: 'शेयर करें',
+                                      tooltip: context.tr('share'),
                                       onPressed: () => _shareReportFile(ins.id, ins.title),
                                     ),
                                   ],

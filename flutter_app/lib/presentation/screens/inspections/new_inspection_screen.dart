@@ -10,6 +10,8 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/services/api_service.dart';
 import '../../providers/inspection_provider.dart';
 import '../../providers/auth_provider.dart';
+import 'package:path_provider/path_provider.dart';
+import '../../providers/language_provider.dart';
 
 class NewInspectionScreen extends StatefulWidget {
   const NewInspectionScreen({super.key});
@@ -27,6 +29,9 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
   final _descriptionController = TextEditingController();
   final _panchayatNameController = TextEditingController();
   final _captionController = TextEditingController();
+  final _investigatorNameController = TextEditingController();
+  final _districtController = TextEditingController();
+  final _blockController = TextEditingController();
   
   String? _selectedPanchayatId;
   String? _selectedType;
@@ -34,9 +39,10 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
   bool _isManualPanchayat = false;
 
   final _picker = ImagePicker();
-  File? _imageFile;
+  List<File> _selectedPhotos = [];
+  File? _mapImageFile;
   Position? _currentPosition;
-  String _gpsStatus = 'GPS स्थान प्राप्त नहीं हुआ';
+  String _gpsStatus = '';
   GoogleMapController? _mapController;
 
   @override
@@ -48,7 +54,17 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     }
     // Load panchayats from the backend on init
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _gpsStatus = context.read<LanguageProvider>().translate('gps_not_received');
       context.read<InspectionProvider>().loadPanchayats();
+
+      final user = context.read<AuthProvider>().currentUser;
+      if (user != null) {
+        setState(() {
+          _investigatorNameController.text = user.nameHindi ?? user.name;
+          _districtController.text = user.district ?? '';
+          _blockController.text = user.block ?? '';
+        });
+      }
     });
     _determinePosition();
   }
@@ -61,6 +77,9 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     _descriptionController.dispose();
     _panchayatNameController.dispose();
     _captionController.dispose();
+    _investigatorNameController.dispose();
+    _districtController.dispose();
+    _blockController.dispose();
     _mapController?.dispose();
     super.dispose();
   }
@@ -103,7 +122,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
         Marker(
           markerId: const MarkerId('current_photo_loc'),
           position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-          infoWindow: const InfoWindow(title: 'निरीक्षण/फ़ोटो स्थान'),
+          infoWindow: InfoWindow(title: context.tr('inspection_photo_location')),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan),
         ),
       );
@@ -115,7 +134,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() => _gpsStatus = 'GPS बंद है');
+        setState(() => _gpsStatus = context.read<LanguageProvider>().translate('gps_disabled'));
         return;
       }
 
@@ -123,49 +142,336 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          setState(() => _gpsStatus = 'GPS अनुमति अस्वीकृत');
+          setState(() => _gpsStatus = context.read<LanguageProvider>().translate('gps_denied'));
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        setState(() => _gpsStatus = 'GPS अनुमति स्थायी रूप से अस्वीकृत');
+        setState(() => _gpsStatus = context.read<LanguageProvider>().translate('gps_denied_forever'));
         return;
       }
 
-      setState(() => _gpsStatus = 'GPS स्थान खोजा जा रहा है...');
+      setState(() => _gpsStatus = context.read<LanguageProvider>().translate('gps_searching'));
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 5),
       );
       setState(() {
         _currentPosition = position;
-        _gpsStatus = 'GPS स्थान: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
+        final isHindi = context.read<LanguageProvider>().isHindi;
+        _gpsStatus = isHindi 
+            ? 'GPS स्थान: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}'
+            : 'GPS Location: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
       });
       _updateMapCamera();
     } catch (e) {
-      setState(() => _gpsStatus = 'GPS त्रुटि: ${e.toString()}');
+      final errLabel = context.read<LanguageProvider>().translate('gps_error');
+      setState(() => _gpsStatus = '$errLabel: ${e.toString()}');
     }
   }
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<void> _pickGalleryImages() async {
+    try {
+      final pickedFiles = await _picker.pickMultiImage(
+        imageQuality: 85,
+        maxWidth: 1200,
+      );
+      if (pickedFiles.isNotEmpty) {
+        setState(() {
+          _selectedPhotos.addAll(pickedFiles.map((pf) => File(pf.path)));
+        });
+        _determinePosition();
+      }
+    } catch (e) {
+      final errLabel = context.read<LanguageProvider>().translate('photo_select_error');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$errLabel: $e'), backgroundColor: AppTheme.errorColor),
+      );
+    }
+  }
+
+  Future<void> _pickCameraImage() async {
     try {
       final pickedFile = await _picker.pickImage(
-        source: source,
+        source: ImageSource.camera,
         imageQuality: 85,
         maxWidth: 1200,
       );
       if (pickedFile != null) {
         setState(() {
-          _imageFile = File(pickedFile.path);
+          _selectedPhotos.add(File(pickedFile.path));
         });
-        // Auto-fetch fresh GPS coordinates when photo is taken/picked
         _determinePosition();
       }
     } catch (e) {
+      final errLabel = context.read<LanguageProvider>().translate('photo_select_error');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('फोटो चुनने में त्रुटि: $e'), backgroundColor: AppTheme.errorColor),
+        SnackBar(content: Text('$errLabel: $e'), backgroundColor: AppTheme.errorColor),
       );
+    }
+  }
+
+  Future<void> _captureMapSnapshot() async {
+    if (_mapController == null) return;
+    try {
+      final imageBytes = await _mapController!.takeSnapshot();
+      if (imageBytes != null) {
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/map_snapshot_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        await file.writeAsBytes(imageBytes);
+        setState(() {
+          _mapImageFile = file;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(context.read<LanguageProvider>().isHindi 
+                  ? 'नक्शा स्नैपशॉट सफलतापूर्वक कैप्चर किया गया!' 
+                  : 'Map snapshot captured successfully!'),
+              backgroundColor: AppTheme.successColor,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Map snapshot error: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickMapImage() async {
+    try {
+      final pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1200,
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _mapImageFile = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Map select error: $e'), backgroundColor: AppTheme.errorColor),
+        );
+      }
+    }
+  }
+
+  Future<void> _executeWorkflow(Map<String, dynamic> data) async {
+    final isHindi = context.read<LanguageProvider>().isHindi;
+    
+    List<String> stepNames = isHindi 
+        ? [
+            '1. निरीक्षण बनाना',
+            '2. फ़ोटो अपलोड करना',
+            '3. मानचित्र अपलोड करना',
+            '4. AI रिपोर्ट जनरेट करना',
+            '5. PDF रिपोर्ट तैयार करना'
+          ]
+        : [
+            '1. Creating Inspection',
+            '2. Uploading Photos',
+            '3. Uploading Location Map',
+            '4. Generating AI Report',
+            '5. Generating PDF Report'
+          ];
+
+    int currentWorkflowStep = 0;
+    String workflowStatus = 'running';
+    String errorMsg = '';
+    String photoProgress = '';
+    StateSetter? dialogStateSetter;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            dialogStateSetter = setDialogState;
+
+            Widget buildStepIcon(int stepIndex) {
+              if (currentWorkflowStep > stepIndex) {
+                return const Icon(Icons.check_circle, color: Colors.green, size: 24);
+              }
+              if (currentWorkflowStep == stepIndex) {
+                if (workflowStatus == 'running') {
+                  return const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  );
+                } else if (workflowStatus == 'error') {
+                  return const Icon(Icons.error, color: Colors.red, size: 24);
+                }
+              }
+              return const Icon(Icons.radio_button_unchecked, color: Colors.grey, size: 24);
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                isHindi ? 'निरीक्षण प्रसंस्करण कार्यप्रवाह' : 'Inspection Processing Workflow',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isHindi 
+                        ? 'कृपया प्रतीक्षा करें, प्रक्रिया चल रही है:' 
+                        : 'Please wait while we process the inspection:',
+                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  ...List.generate(5, (index) {
+                    final isCurrent = index == currentWorkflowStep;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: [
+                          buildStepIcon(index),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  stepNames[index],
+                                  style: TextStyle(
+                                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                    color: isCurrent ? Colors.black : Colors.grey[600],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                if (index == 1 && isCurrent && photoProgress.isNotEmpty)
+                                  Text(
+                                    photoProgress,
+                                    style: const TextStyle(fontSize: 11, color: Colors.blue),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  if (workflowStatus == 'error') ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      '${isHindi ? "त्रुटि" : "Error"}: $errorMsg',
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                if (workflowStatus == 'error')
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                    },
+                    child: Text(isHindi ? 'बंद करें' : 'Close'),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    try {
+      final provider = context.read<InspectionProvider>();
+      
+      void updateDialog(int step, String currentStatus, {String err = '', String prog = ''}) {
+        if (dialogStateSetter != null) {
+          dialogStateSetter!(() {
+            currentWorkflowStep = step;
+            workflowStatus = currentStatus;
+            errorMsg = err;
+            photoProgress = prog;
+          });
+        }
+      }
+
+      // Step 1: Create
+      updateDialog(0, 'running');
+      final newInspection = await provider.createInspection(data);
+      if (newInspection == null) {
+        throw Exception(provider.error ?? (isHindi ? 'निरीक्षण बनाने में विफल' : 'Failed to create inspection'));
+      }
+
+      // Step 2: Upload Photos
+      updateDialog(1, 'running');
+      if (_selectedPhotos.isNotEmpty) {
+        for (int i = 0; i < _selectedPhotos.length; i++) {
+          final photo = _selectedPhotos[i];
+          updateDialog(1, 'running', prog: isHindi ? 'अपलोड हो रहा है ${i + 1}/${_selectedPhotos.length}' : 'Uploading ${i + 1}/${_selectedPhotos.length}');
+          await ApiService().uploadPhoto(
+            inspectionId: newInspection.id,
+            filePath: photo.path,
+            latitude: _currentPosition?.latitude ?? AppConstants.defaultLat,
+            longitude: _currentPosition?.longitude ?? AppConstants.defaultLng,
+            caption: _captionController.text.trim().isEmpty ? null : _captionController.text.trim(),
+          );
+        }
+      }
+
+      // Step 3: Upload Map
+      updateDialog(2, 'running');
+      if (_mapImageFile != null) {
+        await ApiService().uploadMap(
+          inspectionId: newInspection.id,
+          filePath: _mapImageFile!.path,
+        );
+      }
+
+      // Step 4: Suggest AI Report
+      updateDialog(3, 'running');
+      final aiSuccess = await provider.suggestAIReport(newInspection.id);
+      if (!aiSuccess) {
+        throw Exception(provider.error ?? (isHindi ? 'AI रिपोर्ट जनरेट करने में विफल' : 'Failed to generate AI report'));
+      }
+
+      // Step 5: Generate PDF
+      updateDialog(4, 'running');
+      try {
+        await ApiService().generateReport(newInspection.id);
+      } catch (e) {
+        throw Exception(isHindi ? 'PDF जनरेट करने में विफल: $e' : 'Failed to generate PDF: $e');
+      }
+
+      updateDialog(5, 'success');
+      
+      if (mounted) {
+        Navigator.pop(context); // Close dialog
+        Navigator.pushReplacementNamed(
+          context,
+          '/reports/preview',
+          arguments: {
+            'inspectionId': newInspection.id,
+            'title': newInspection.title,
+          },
+        );
+      }
+    } catch (e) {
+      if (dialogStateSetter != null) {
+        dialogStateSetter!(() {
+          workflowStatus = 'error';
+          errorMsg = e.toString().replaceAll('Exception:', '').trim();
+        });
+      }
     }
   }
 
@@ -173,8 +479,8 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (!_isManualPanchayat && _selectedPanchayatId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('कृपया ग्राम पंचायत चुनें'),
+        SnackBar(
+          content: Text(context.tr('please_select_panchayat')),
           backgroundColor: AppTheme.errorColor,
         ),
       );
@@ -182,15 +488,14 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     }
     if (_isManualPanchayat && _panchayatNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('कृपया ग्राम पंचायत का नाम लिखें'),
+        SnackBar(
+          content: Text(context.tr('please_write_panchayat')),
           backgroundColor: AppTheme.errorColor,
         ),
       );
       return;
     }
 
-    final provider = context.read<InspectionProvider>();
     final data = {
       if (!_isManualPanchayat) 'panchayat_id': _selectedPanchayatId,
       if (_isManualPanchayat) 'new_panchayat_name': _panchayatNameController.text.trim(),
@@ -200,81 +505,23 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
       'project_name': _projectNameController.text.trim().isEmpty ? null : _projectNameController.text.trim(),
       'project_code': _projectCodeController.text.trim().isEmpty ? null : _projectCodeController.text.trim(),
       'inspection_date': _selectedDate?.toUtc().toIso8601String(),
+      'investigator_name': _investigatorNameController.text.trim().isEmpty ? null : _investigatorNameController.text.trim(),
+      'district': _districtController.text.trim().isEmpty ? null : _districtController.text.trim(),
+      'block': _blockController.text.trim().isEmpty ? null : _blockController.text.trim(),
     };
 
-    final newInspection = await provider.createInspection(data);
-    if (!mounted) return;
-
-    if (newInspection != null) {
-      // Direct Photo Upload Logic
-      if (_imageFile != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                ),
-                SizedBox(width: 12),
-                Text('निरीक्षण सेव हो गया। फ़ोटो अपलोड हो रही है...'),
-              ],
-            ),
-            duration: Duration(seconds: 4),
-          ),
-        );
-        try {
-          await ApiService().uploadPhoto(
-            inspectionId: newInspection.id,
-            filePath: _imageFile!.path,
-            latitude: _currentPosition?.latitude ?? AppConstants.defaultLat,
-            longitude: _currentPosition?.longitude ?? AppConstants.defaultLng,
-            caption: _captionController.text.trim().isEmpty ? null : _captionController.text.trim(),
-          );
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('फ़ोटो अपलोड विफल: $e'),
-              backgroundColor: AppTheme.errorColor,
-            ),
-          );
-        }
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('नया निरीक्षण सफलतापूर्वक बनाया गया!'),
-          backgroundColor: AppTheme.successColor,
-        ),
-      );
-      // Redirect to the newly created inspection's detail screen
-      Navigator.pushReplacementNamed(
-        context,
-        '/inspections/detail',
-        arguments: newInspection.id,
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('निरीक्षण बनाने में विफल: ${provider.error ?? "अज्ञान त्रुटि"}'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
-    }
+    _executeWorkflow(data);
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InspectionProvider>();
-    final authProvider = context.watch<AuthProvider>();
-    final user = authProvider.currentUser;
     final panchayats = provider.panchayats;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: const Text('नया निरीक्षण बनाएं', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(context.tr('create_new_inspection'), style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -297,9 +544,9 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'निरीक्षण का विवरण',
-                              style: TextStyle(
+                            Text(
+                              context.tr('inspection_details'),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primaryColor,
@@ -307,48 +554,109 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                             ),
                             const SizedBox(height: 16),
 
-                            // Junior Engineer Name
+                            // Junior Engineer Name -> Investigator Name
                             TextFormField(
-                              initialValue: user?.nameHindi ?? user?.name ?? 'N/A',
-                              enabled: false,
+                              controller: _investigatorNameController,
                               style: const TextStyle(color: Colors.black87),
                               decoration: InputDecoration(
-                                labelText: 'अवर अभियंता का नाम (Junior Engineer)',
-                                prefixIcon: const Icon(Icons.person, color: Colors.grey),
+                                labelText: context.tr('officer_name'),
+                                prefixIcon: const Icon(Icons.person, color: AppTheme.primaryColor),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 filled: true,
-                                fillColor: Colors.grey[100],
+                                fillColor: Colors.grey[50],
                               ),
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) {
+                                  return 'Investigator name is required';
+                                }
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 16),
 
-                            // District Name
-                            TextFormField(
-                              initialValue: user?.district ?? 'N/A',
-                              enabled: false,
-                              style: const TextStyle(color: Colors.black87),
-                              decoration: InputDecoration(
-                                labelText: 'जनपद का नाम (District)',
-                                prefixIcon: const Icon(Icons.map, color: Colors.grey),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                              ),
+                            // District Name -> Searchable Editable Text Field
+                            Autocomplete<String>(
+                              initialValue: TextEditingValue(text: _districtController.text),
+                              optionsBuilder: (TextEditingValue textEditingValue) {
+                                final list = panchayats.map((p) => p.district).toSet().toList();
+                                if (textEditingValue.text.isEmpty) {
+                                  return list;
+                                }
+                                return list.where((String option) {
+                                  return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                                });
+                              },
+                              onSelected: (String selection) {
+                                _districtController.text = selection;
+                              },
+                              fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
+                                if (textController.text != _districtController.text && _districtController.text.isNotEmpty && textController.text.isEmpty) {
+                                  textController.text = _districtController.text;
+                                }
+                                textController.addListener(() {
+                                  _districtController.text = textController.text;
+                                });
+                                return TextFormField(
+                                  controller: textController,
+                                  focusNode: focusNode,
+                                  decoration: InputDecoration(
+                                    labelText: context.tr('district_name'),
+                                    prefixIcon: const Icon(Icons.map, color: AppTheme.primaryColor),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                    filled: true,
+                                    fillColor: Colors.grey[50],
+                                  ),
+                                  validator: (val) {
+                                    if (val == null || val.trim().isEmpty) {
+                                      return 'District is required';
+                                    }
+                                    return null;
+                                  },
+                                );
+                              },
                             ),
                             const SizedBox(height: 16),
 
-                            // Block Name
-                            TextFormField(
-                              initialValue: user?.block ?? 'N/A',
-                              enabled: false,
-                              style: const TextStyle(color: Colors.black87),
-                              decoration: InputDecoration(
-                                labelText: 'ब्लॉक का नाम (Block)',
-                                prefixIcon: const Icon(Icons.location_on, color: Colors.grey),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                              ),
+                            // Block Name -> Searchable Editable Text Field
+                            Autocomplete<String>(
+                              initialValue: TextEditingValue(text: _blockController.text),
+                              optionsBuilder: (TextEditingValue textEditingValue) {
+                                final list = panchayats.map((p) => p.block).toSet().toList();
+                                if (textEditingValue.text.isEmpty) {
+                                  return list;
+                                }
+                                return list.where((String option) {
+                                  return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                                });
+                              },
+                              onSelected: (String selection) {
+                                _blockController.text = selection;
+                              },
+                              fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
+                                if (textController.text != _blockController.text && _blockController.text.isNotEmpty && textController.text.isEmpty) {
+                                  textController.text = _blockController.text;
+                                }
+                                textController.addListener(() {
+                                  _blockController.text = textController.text;
+                                });
+                                return TextFormField(
+                                  controller: textController,
+                                  focusNode: focusNode,
+                                  decoration: InputDecoration(
+                                    labelText: context.tr('block_name'),
+                                    prefixIcon: const Icon(Icons.location_on, color: AppTheme.primaryColor),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                    filled: true,
+                                    fillColor: Colors.grey[50],
+                                  ),
+                                  validator: (val) {
+                                    if (val == null || val.trim().isEmpty) {
+                                      return 'Block is required';
+                                    }
+                                    return null;
+                                  },
+                                );
+                              },
                             ),
                             const SizedBox(height: 16),
 
@@ -356,9 +664,9 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
-                                  'ग्राम पंचायत *',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primaryColor),
+                                Text(
+                                  context.tr('select_panchayat'),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primaryColor),
                                 ),
                                 TextButton.icon(
                                   onPressed: () {
@@ -373,7 +681,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                   },
                                   icon: Icon(_isManualPanchayat ? Icons.list : Icons.edit, size: 18),
                                   label: Text(
-                                    _isManualPanchayat ? 'सूची से चुनें' : 'मैनुअल नाम लिखें',
+                                    _isManualPanchayat ? context.tr('select_from_list') : context.tr('write_manual'),
                                     style: const TextStyle(fontSize: 12),
                                   ),
                                 ),
@@ -385,7 +693,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                 ? TextFormField(
                                     controller: _panchayatNameController,
                                     decoration: InputDecoration(
-                                      labelText: 'ग्राम पंचायत का नाम (मैनुअल लिखें) *',
+                                      labelText: context.tr('manual_panchayat'),
                                       prefixIcon: const Icon(Icons.location_city, color: AppTheme.primaryColor),
                                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                       filled: true,
@@ -393,22 +701,22 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                     ),
                                     validator: (val) {
                                       if (_isManualPanchayat && (val == null || val.trim().isEmpty)) {
-                                        return 'ग्राम पंचायत का नाम लिखना अनिवार्य है';
+                                        return context.tr('panchayat_name_required');
                                       }
                                       return null;
                                     },
                                   )
                                 : DropdownButtonFormField<String>(
-                                    value: _selectedPanchayatId,
+                                    initialValue: _selectedPanchayatId,
                                     isExpanded: true,
                                     decoration: InputDecoration(
-                                      labelText: 'ग्राम पंचायत चुनें *',
+                                      labelText: context.tr('select_panchayat'),
                                       prefixIcon: const Icon(Icons.location_city, color: AppTheme.primaryColor),
                                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                       filled: true,
                                       fillColor: Colors.grey[50],
                                     ),
-                                    hint: const Text('ग्राम पंचायत चुनें'),
+                                    hint: Text(context.tr('select_panchayat')),
                                     items: panchayats.map((p) {
                                       return DropdownMenuItem<String>(
                                         value: p.id,
@@ -425,7 +733,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                     },
                                     validator: (val) {
                                       if (!_isManualPanchayat && val == null) {
-                                        return 'ग्राम पंचायत चुनना अनिवार्य है';
+                                        return context.tr('panchayat_select_required');
                                       }
                                       return null;
                                     },
@@ -434,10 +742,10 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
 
                             // Inspection Type Dropdown
                             DropdownButtonFormField<String>(
-                              value: _selectedType,
+                              initialValue: _selectedType,
                               isExpanded: true,
                               decoration: InputDecoration(
-                                labelText: 'निरीक्षण का प्रकार',
+                                labelText: context.tr('inspection_type'),
                                 prefixIcon: const Icon(Icons.category, color: AppTheme.primaryColor),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 filled: true,
@@ -464,7 +772,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                             TextFormField(
                               controller: _titleController,
                               decoration: InputDecoration(
-                                labelText: 'निरीक्षण का शीर्षक (Title) *',
+                                labelText: context.tr('inspection_title'),
                                 prefixIcon: const Icon(Icons.title, color: AppTheme.primaryColor),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 filled: true,
@@ -472,7 +780,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                               ),
                               validator: (val) {
                                 if (val == null || val.trim().isEmpty) {
-                                  return 'शीर्षक लिखना अनिवार्य है';
+                                  return context.tr('title_required');
                                 }
                                 return null;
                               },
@@ -483,7 +791,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                             TextFormField(
                               controller: _projectNameController,
                               decoration: InputDecoration(
-                                labelText: 'परियोजना का नाम (Project Name)',
+                                labelText: context.tr('project_name'),
                                 prefixIcon: const Icon(Icons.work, color: AppTheme.primaryColor),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 filled: true,
@@ -496,7 +804,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                             TextFormField(
                               controller: _projectCodeController,
                               decoration: InputDecoration(
-                                labelText: 'परियोजना कोड (Project Code)',
+                                labelText: context.tr('project_code'),
                                 prefixIcon: const Icon(Icons.qr_code, color: AppTheme.primaryColor),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 filled: true,
@@ -510,7 +818,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                               onTap: () => _selectDate(context),
                               child: InputDecorator(
                                 decoration: InputDecoration(
-                                  labelText: 'निरीक्षण की तिथि',
+                                  labelText: context.tr('inspection_date'),
                                   prefixIcon: const Icon(Icons.calendar_today, color: AppTheme.primaryColor),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                   filled: true,
@@ -518,7 +826,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                 ),
                                 child: Text(
                                   _selectedDate == null
-                                      ? 'तिथि चुनें'
+                                      ? context.tr('select_date')
                                       : DateFormat('dd/MM/yyyy').format(_selectedDate!),
                                   style: const TextStyle(fontSize: 16),
                                 ),
@@ -531,7 +839,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                               controller: _descriptionController,
                               maxLines: 4,
                               decoration: InputDecoration(
-                                labelText: 'विवरण / अतिरिक्त टिप्पणी (Description)',
+                                labelText: context.tr('description'),
                                 prefixIcon: const Icon(Icons.description, color: AppTheme.primaryColor),
                                 alignLabelWithHint: true,
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -555,44 +863,85 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const Text(
-                              'निरीक्षण फ़ोटो (ऑप्शनल)',
-                              style: TextStyle(
+                            Text(
+                              context.tr('inspection_photo'),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primaryColor,
                               ),
                             ),
                             const SizedBox(height: 12),
-                            _imageFile == null
+                            _selectedPhotos.isEmpty
                                 ? Container(
-                                    height: 150,
+                                    height: 120,
                                     decoration: BoxDecoration(
                                       color: Colors.grey[50],
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(color: Colors.grey[300]!, width: 1),
                                     ),
-                                    child: const Column(
+                                    child: Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Icon(Icons.camera_alt_outlined, size: 40, color: Colors.grey),
-                                        SizedBox(height: 8),
-                                        Text('कोई फोटो चुनी नहीं गई है', style: TextStyle(color: Colors.grey)),
+                                        const Icon(Icons.camera_alt_outlined, size: 40, color: Colors.grey),
+                                        const SizedBox(height: 8),
+                                        Text(context.tr('no_photo_selected'), style: const TextStyle(color: Colors.grey)),
                                       ],
                                     ),
                                   )
-                                : ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.file(_imageFile!, height: 180, fit: BoxFit.cover),
+                                : SizedBox(
+                                    height: 120,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: _selectedPhotos.length,
+                                      itemBuilder: (context, index) {
+                                        return Stack(
+                                          children: [
+                                            Container(
+                                              margin: const EdgeInsets.only(right: 8, top: 8),
+                                              width: 100,
+                                              height: 100,
+                                              decoration: BoxDecoration(
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: Colors.grey[350]!),
+                                              ),
+                                              child: ClipRRect(
+                                                borderRadius: BorderRadius.circular(8),
+                                                child: Image.file(_selectedPhotos[index], fit: BoxFit.cover),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              right: 0,
+                                              top: 0,
+                                              child: GestureDetector(
+                                                onTap: () {
+                                                  setState(() {
+                                                    _selectedPhotos.removeAt(index);
+                                                  });
+                                                },
+                                                child: Container(
+                                                  decoration: const BoxDecoration(
+                                                    color: Colors.red,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  padding: const EdgeInsets.all(4),
+                                                  child: const Icon(Icons.close, size: 12, color: Colors.white),
+                                                ),
+                                              ),
+                                            )
+                                          ],
+                                        );
+                                      },
+                                    ),
                                   ),
                             const SizedBox(height: 12),
                             Row(
                               children: [
                                 Expanded(
                                   child: ElevatedButton.icon(
-                                    onPressed: () => _pickImage(ImageSource.camera),
+                                    onPressed: _pickCameraImage,
                                     icon: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
-                                    label: const Text('कैमरा', style: TextStyle(color: Colors.white, fontSize: 13)),
+                                    label: Text(context.tr('camera'), style: const TextStyle(color: Colors.white, fontSize: 13)),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppTheme.primaryColor,
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -602,9 +951,9 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: ElevatedButton.icon(
-                                    onPressed: () => _pickImage(ImageSource.gallery),
+                                    onPressed: _pickGalleryImages,
                                     icon: const Icon(Icons.photo_library, color: Colors.white, size: 18),
-                                    label: const Text('गैलरी', style: TextStyle(color: Colors.white, fontSize: 13)),
+                                    label: Text(context.tr('gallery'), style: const TextStyle(color: Colors.white, fontSize: 13)),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppTheme.secondaryColor,
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -613,13 +962,13 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                 ),
                               ],
                             ),
-                            if (_imageFile != null) ...[
+                            if (_selectedPhotos.isNotEmpty) ...[
                               const SizedBox(height: 12),
                               // Caption field
                               TextFormField(
                                 controller: _captionController,
                                 decoration: InputDecoration(
-                                  labelText: 'फ़ोटो का शीर्षक / टिप्पणी (Caption)',
+                                  labelText: context.tr('photo_caption'),
                                   prefixIcon: const Icon(Icons.comment, color: AppTheme.primaryColor, size: 20),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                   filled: true,
@@ -634,7 +983,7 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Google Map Card showing current location
+                    // Google Map Card showing current location & map attachment options
                     Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -644,9 +993,9 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const Text(
-                              'निरीक्षण स्थान (नक्शा)',
-                              style: TextStyle(
+                            Text(
+                              context.tr('inspection_location_map'),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primaryColor,
@@ -697,6 +1046,54 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 12),
+                            if (_mapImageFile != null) ...[
+                              Container(
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey[300]!),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(_mapImageFile!, height: 120, width: double.infinity, fit: BoxFit.cover),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: _captureMapSnapshot,
+                                    icon: const Icon(Icons.map_rounded, color: Colors.white, size: 18),
+                                    label: Text(
+                                      context.read<LanguageProvider>().isHindi ? 'नक्शा कैप्चर' : 'Capture Map',
+                                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryColor,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: _pickMapImage,
+                                    icon: const Icon(Icons.photo_library, color: Colors.white, size: 18),
+                                    label: Text(
+                                      context.read<LanguageProvider>().isHindi ? 'नक्शा अपलोड' : 'Upload Map',
+                                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.secondaryColor,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -713,9 +1110,9 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                       ),
                       child: provider.isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'निरीक्षण सुरक्षित करें',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          : Text(
+                              context.tr('save_inspection'),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                             ),
                     ),
                   ],

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../providers/inspection_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../../data/models/models.dart';
 import 'inspection_detail_screen.dart';
 
@@ -19,12 +20,12 @@ class _InspectionListScreenState extends State<InspectionListScreen> {
   String? _selectedStatus;
 
   final _statuses = [
-    (null, 'सभी', Icons.list_rounded),
-    ('draft', 'मसौदा', Icons.edit_rounded),
-    ('submitted', 'जमा', Icons.send_rounded),
-    ('verified', 'सत्यापित', Icons.verified_rounded),
-    ('approved', 'स्वीकृत', Icons.check_circle_rounded),
-    ('rejected', 'अस्वीकृत', Icons.cancel_rounded),
+    (null, 'all', Icons.list_rounded),
+    ('draft', 'draft', Icons.edit_rounded),
+    ('submitted', 'submitted', Icons.send_rounded),
+    ('verified', 'verified', Icons.verified_rounded),
+    ('approved', 'approved', Icons.check_circle_rounded),
+    ('rejected', 'rejected', Icons.cancel_rounded),
   ];
 
   @override
@@ -51,7 +52,7 @@ class _InspectionListScreenState extends State<InspectionListScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: const Text('निरीक्षण सूची'),
+        title: Text(context.tr('inspections')),
         actions: [
           IconButton(icon: const Icon(Icons.search_rounded), onPressed: _showSearch),
         ],
@@ -59,7 +60,7 @@ class _InspectionListScreenState extends State<InspectionListScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.pushNamed(context, '/inspections/new'),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('नया निरीक्षण'),
+        label: Text(context.tr('new_inspection')),
         backgroundColor: AppTheme.accentColor,
       ),
       body: Column(
@@ -112,7 +113,7 @@ class _InspectionListScreenState extends State<InspectionListScreen> {
                 label: Row(children: [
                   Icon(s.$3, size: 14, color: isSelected ? Colors.white : Colors.grey[700]),
                   const SizedBox(width: 4),
-                  Text(s.$2),
+                  Text(context.tr(s.$2)),
                 ]),
                 selected: isSelected,
                 onSelected: (_) {
@@ -201,7 +202,12 @@ class _InspectionListScreenState extends State<InspectionListScreen> {
                   Row(children: [
                     const Icon(Icons.photo_library_outlined, size: 14, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Text('${inspection.photos.length} फ़ोटो', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text(
+                      context.watch<LanguageProvider>().isHindi 
+                          ? '${inspection.photos.length} फ़ोटो' 
+                          : '${inspection.photos.length} Photo${inspection.photos.length == 1 ? '' : 's'}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                     if (inspection.isCheckedIn) ...[
                       const SizedBox(width: 8),
                       Container(
@@ -210,10 +216,13 @@ class _InspectionListScreenState extends State<InspectionListScreen> {
                           color: AppTheme.successColor.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Row(children: [
-                          Icon(Icons.location_on_rounded, size: 10, color: AppTheme.successColor),
-                          SizedBox(width: 2),
-                          Text('चेक-इन', style: TextStyle(fontSize: 10, color: AppTheme.successColor, fontWeight: FontWeight.w600)),
+                        child: Row(children: [
+                          const Icon(Icons.location_on_rounded, size: 10, color: AppTheme.successColor),
+                          const SizedBox(width: 2),
+                          Text(
+                            context.watch<LanguageProvider>().isHindi ? 'चेक-इन' : 'Checked-in',
+                            style: const TextStyle(fontSize: 10, color: AppTheme.successColor, fontWeight: FontWeight.w600),
+                          ),
                         ]),
                       ),
                     ],
@@ -242,8 +251,7 @@ class _InspectionListScreenState extends State<InspectionListScreen> {
   }
 
   String _getStatusLabel(String status) {
-    const m = {'draft': 'मसौदा', 'submitted': 'जमा', 'verified': 'सत्यापित', 'approved': 'स्वीकृत', 'rejected': 'अस्वीकृत'};
-    return m[status] ?? status;
+    return context.tr(status);
   }
 
   String _formatDate(DateTime dt) {
@@ -255,21 +263,20 @@ class _InspectionListScreenState extends State<InspectionListScreen> {
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(Icons.assignment_outlined, size: 80, color: Colors.grey.shade300),
         const SizedBox(height: 16),
-        const Text('कोई निरीक्षण नहीं', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
+        Text(context.tr('no_inspections'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
         const SizedBox(height: 8),
-        const Text('नया निरीक्षण बनाने के लिए + बटन दबाएं', style: TextStyle(color: Colors.grey)),
+        Text(context.tr('add_button_instruction'), style: const TextStyle(color: Colors.grey)),
       ]),
     );
   }
 
   void _showSearch() {
-    showSearch(context: context, delegate: _InspectionSearchDelegate());
+    showSearch(context: context, delegate: _InspectionSearchDelegate(context.tr('search_inspection')));
   }
 }
 
 class _InspectionSearchDelegate extends SearchDelegate<String> {
-  @override
-  String get searchFieldLabel => 'निरीक्षण खोजें...';
+  _InspectionSearchDelegate(String label) : super(searchFieldLabel: label);
 
   @override
   List<Widget> buildActions(BuildContext context) => [

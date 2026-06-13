@@ -180,6 +180,10 @@ class InspectionCreate(BaseModel):
     project_name: Optional[str] = None
     project_code: Optional[str] = None
     inspection_date: Optional[datetime] = None
+    investigator_name: Optional[str] = None
+    district: Optional[str] = None
+    block: Optional[str] = None
+    map_image_path: Optional[str] = None
 
 
 class InspectionUpdate(BaseModel):
@@ -192,6 +196,10 @@ class InspectionUpdate(BaseModel):
     recommendations: Optional[str] = None
     action_taken: Optional[str] = None
     inspection_date: Optional[datetime] = None
+    investigator_name: Optional[str] = None
+    district: Optional[str] = None
+    block: Optional[str] = None
+    map_image_path: Optional[str] = None
 
 
 class GPSCheckIn(BaseModel):
@@ -243,6 +251,10 @@ class InspectionResponse(BaseModel):
     submitted_at: Optional[datetime] = None
     approved_at: Optional[datetime] = None
     ai_report_draft: Optional[str] = None
+    investigator_name: Optional[str] = None
+    district: Optional[str] = None
+    block: Optional[str] = None
+    map_image_path: Optional[str] = None
     created_at: datetime
     panchayat: Optional[PanchayatResponse] = None
     engineer: Optional[UserResponse] = None

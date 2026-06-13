@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../providers/inspection_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../../data/models/models.dart';
 
 class CalendarScreen extends StatefulWidget {
@@ -63,7 +64,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: const Text('निरीक्षण कैलेंडर', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(context.tr('inspection_calendar'), style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -82,7 +83,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 lastDay: DateTime.utc(2030, 12, 31),
                 focusedDay: _focusedDay,
                 calendarFormat: _calendarFormat,
-                locale: 'hi_IN',
+                locale: context.watch<LanguageProvider>().isHindi ? 'hi_IN' : 'en_US',
                 selectedDayPredicate: (day) {
                   return isSameDay(_selectedDay, day);
                 },
@@ -138,8 +139,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 const SizedBox(width: 8),
                 Text(
                   _selectedDay == null
-                      ? 'तारीख का चयन करें'
-                      : 'निरीक्षण सूची - ${_selectedDay!.day}/${_selectedDay!.month}/${_selectedDay!.year}',
+                      ? context.tr('select_date_prompt')
+                      : '${context.tr('inspections')} - ${_selectedDay!.day}/${_selectedDay!.month}/${_selectedDay!.year}',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF2C3E50)),
                 ),
               ],
@@ -150,13 +151,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
           // Selected day inspections list
           Expanded(
             child: selectedInspections.isEmpty
-                ? const Center(
+                ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.event_busy, size: 48, color: Colors.grey),
-                        SizedBox(height: 8),
-                        Text('इस तारीख को कोई निरीक्षण नहीं है', style: TextStyle(color: Colors.grey)),
+                        const Icon(Icons.event_busy, size: 48, color: Colors.grey),
+                        const SizedBox(height: 8),
+                        Text(context.tr('no_inspections_on_date'), style: const TextStyle(color: Colors.grey)),
                       ],
                     ),
                   )
@@ -182,7 +183,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 4),
-                              Text('ग्राम पंचायत: ${ins.panchayat?.nameHindi ?? ins.panchayat?.name ?? "N/A"}'),
+                              Text(
+                                context.read<LanguageProvider>().isHindi 
+                                    ? 'ग्राम पंचायत: ${ins.panchayat?.nameHindi ?? ins.panchayat?.name ?? "N/A"}' 
+                                    : 'Gram Panchayat: ${ins.panchayat?.name ?? ins.panchayat?.nameHindi ?? "N/A"}',
+                              ),
                               const SizedBox(height: 2),
                               Text('ID: ${ins.inspectionId}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
                             ],
@@ -194,7 +199,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              AppConstants.statusLabels[ins.status] ?? ins.status.toUpperCase(),
+                              context.tr(ins.status),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,

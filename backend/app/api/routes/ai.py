@@ -114,24 +114,30 @@ async def suggest_report(
     result2 = await db.execute(select(Panchayat).where(Panchayat.id == inspection.panchayat_id))
     panchayat = result2.scalar_one_or_none()
 
-    prompt = f"""Generate a professional inspection report draft for the following inspection:
-    
-Inspection Title: {inspection.title}
-Panchayat: {panchayat.name if panchayat else 'N/A'}, {panchayat.district if panchayat else 'N/A'}
-Inspection Type: {inspection.inspection_type or 'General'}
-Project: {inspection.project_name or 'N/A'}
-Observations: {inspection.observations or 'Field inspection conducted'}
-Engineer Notes: {inspection.description or 'Standard inspection'}
+    prompt = f"""उत्तर प्रदेश सरकार के ग्राम विकास विभाग के मानकों के अनुसार एक अत्यंत औपचारिक और पेशेवर ग्राम पंचायत निरीक्षण रिपोर्ट (निरीक्षण आख्या) का हिंदी में मसौदा तैयार करें।
 
-Please write:
-1. Executive Summary (2-3 sentences)
-2. Key Findings (bullet points)
-3. Recommendations (numbered list)
-4. Next Steps
+निरीक्षण विवरण:
+- निरीक्षण का शीर्षक: {inspection.title}
+- ग्राम पंचायत: {panchayat.name_hindi or panchayat.name if panchayat else 'N/A'} (जनपद: {inspection.district or (panchayat.district if panchayat else 'N/A')}, विकास खंड: {inspection.block or (panchayat.block if panchayat else 'N/A')})
+- निरीक्षण प्रकार: {inspection.inspection_type or 'सामान्य'}
+- परियोजना/कार्य का नाम: {inspection.project_name or 'N/A'} (코드/संकेतांक: {inspection.project_code or 'N/A'})
+- दिनांक: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}
+- जांचकर्ता/इंजीनियर: {inspection.investigator_name or current_user.name_hindi or current_user.name} (पद: {current_user.designation or 'अवर अभियंता'})
 
-Format it professionally for a government department report."""
+निरीक्षण के मुख्य बिंदु (Observations / Notes):
+{inspection.observations or 'स्थल निरीक्षण किया गया।'}
+{inspection.description or ''}
 
-    response = await call_gemini(prompt, "en")
+निम्नलिखित शीर्षकों के अंतर्गत पूर्ण हिंदी रिपोर्ट तैयार करें (कोई अंग्रेजी शब्द या अंग्रेजी/हिंदी का मिश्रण न हो, भाषा विशुद्ध प्रशासनिक/सरकारी राजभाषा हिंदी होनी चाहिए):
+
+1. **कार्य का संक्षिप्त विवरण (Executive Summary)**: परियोजना और निरीक्षण का सारांश।
+2. **निरीक्षण के दौरान पाई गई कमियां/विशिष्ट निष्कर्ष (Key Findings & Observations)**: कार्य में पाई गई तकनीकी या प्रशासनिक कमियों का बिंदुवार विवरण।
+3. **सुधार हेतु संस्तुतियां/सिफारिशें (Recommendations)**: कमियों को दूर करने के लिए ठोस, व्यावहारिक और समयबद्ध उपाय/निर्देश।
+4. **निष्कर्ष (Conclusion)**: कार्य की गुणवत्ता पर अंतिम टिप्पणी और अग्रिम कार्रवाई हेतु निष्कर्ष।
+
+कृपया केवल हिंदी भाषा का उपयोग करें और सुनिश्चित करें कि भाषा का स्तर सरकारी पत्राचार और आधिकारिक आख्या के अनुरूप अत्यंत गरिमापूर्ण और गंभीर हो।"""
+
+    response = await call_gemini(prompt, "hi")
 
     # Store AI draft
     inspection.ai_report_draft = response

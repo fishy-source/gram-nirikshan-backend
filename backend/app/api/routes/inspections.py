@@ -1,7 +1,7 @@
 """
 Inspection routes: CRUD, GPS check-in/out, status workflow, auto-ID generation.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
@@ -306,6 +306,52 @@ async def gps_checkout(
     )
 
 
+@router.post("/{inspection_id}/upload-map", response_model=InspectionResponse)
+async def upload_map(
+    inspection_id: str,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_engineer()),
+):
+    """Upload location map image for an inspection."""
+    result = await db.execute(select(Inspection).where(Inspection.id == inspection_id))
+    inspection = result.scalar_one_or_none()
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+
+    if file.content_type not in settings.ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Invalid file type: {file.content_type}")
+
+    file_bytes = await file.read()
+    if len(file_bytes) > settings.MAX_FILE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"File too large (max {settings.MAX_FILE_SIZE_MB}MB)")
+
+    import uuid
+    from pathlib import Path
+    maps_dir = Path(settings.UPLOAD_DIR) / "maps"
+    maps_dir.mkdir(parents=True, exist_ok=True)
+
+    file_id = str(uuid.uuid4())
+    file_path = maps_dir / f"{file_id}.jpg"
+
+    with open(file_path, "wb") as f:
+        f.write(file_bytes)
+
+    inspection.map_image_path = f"uploads/maps/{file_id}.jpg"
+    await db.flush()
+
+    res = await db.execute(
+        select(Inspection)
+        .where(Inspection.id == inspection.id)
+        .options(
+            selectinload(Inspection.panchayat),
+            selectinload(Inspection.engineer),
+            selectinload(Inspection.photos)
+        )
+    )
+    return res.scalar_one()
+
+
 @router.post("/{inspection_id}/approve", response_model=MessageResponse)
 async def approve_inspection(
     inspection_id: str,
@@ -360,8 +406,34 @@ async def get_inspection_approvals(
 ):
     """Get approval history for an inspection."""
     result = await db.execute(
-        select(Approval).where(Approval.inspection_id == inspection_id)
+        select(Approval)
+        .where(Approval.inspection_id == inspection_id)
+        .options(selectinload(Approval.approver))
         .order_by(Approval.created_at)
     )
     approvals = result.scalars().all()
     return [ApprovalResponse.model_validate(a) for a in approvals]
+
+
+@router.delete("/{inspection_id}", response_model=MessageResponse)
+async def delete_inspection(
+    inspection_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete an inspection. Restricted to Admin."""
+    if current_user.role.value != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Admin can delete inspections."
+        )
+
+    result = await db.execute(select(Inspection).where(Inspection.id == inspection_id))
+    inspection = result.scalar_one_or_none()
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+
+    await db.delete(inspection)
+    await db.commit()
+
+    return MessageResponse(message="Inspection deleted successfully", success=True)

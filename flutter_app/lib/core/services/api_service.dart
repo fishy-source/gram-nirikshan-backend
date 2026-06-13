@@ -4,6 +4,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http_parser/http_parser.dart';
 import '../constants/app_constants.dart';
 
 class ApiService {
@@ -130,6 +131,9 @@ class ApiService {
   Future<Response> updateInspection(String id, Map<String, dynamic> data) =>
       _dio.put('/inspections/$id', data: data);
 
+  Future<Response> deleteInspection(String id) =>
+      _dio.delete('/inspections/$id');
+
   Future<Response> submitInspection(String id) =>
       _dio.post('/inspections/$id/submit');
 
@@ -159,13 +163,35 @@ class ApiService {
     double? longitude,
     String? caption,
   }) async {
+    final fileName = filePath.split('/').last;
+    final extension = fileName.split('.').last.toLowerCase();
+    
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath, filename: filePath.split('/').last),
+      'file': await MultipartFile.fromFile(
+        filePath,
+        filename: fileName,
+        contentType: MediaType('image', extension == 'png' ? 'png' : (extension == 'webp' ? 'webp' : 'jpeg')),
+      ),
       if (latitude != null) 'latitude': latitude.toString(),
       if (longitude != null) 'longitude': longitude.toString(),
       if (caption != null) 'caption': caption,
     });
     return _dio.post('/photos/upload/$inspectionId', data: formData);
+  }
+
+  Future<Response> uploadMap({
+    required String inspectionId,
+    required String filePath,
+  }) async {
+    final fileName = filePath.split('/').last;
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(
+        filePath,
+        filename: fileName,
+        contentType: MediaType('image', 'jpeg'),
+      ),
+    });
+    return _dio.post('/inspections/$inspectionId/upload-map', data: formData);
   }
 
   Future<Response> getPhotos(String inspectionId) => _dio.get('/photos/$inspectionId');

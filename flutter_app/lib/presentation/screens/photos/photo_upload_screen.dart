@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/api_service.dart';
 import '../../providers/inspection_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../../data/models/models.dart';
 
 class PhotoUploadScreen extends StatefulWidget {
@@ -24,12 +25,13 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   File? _imageFile;
   bool _isLoading = false;
   Position? _currentPosition;
-  String _gpsStatus = 'GPS स्थान प्राप्त नहीं हुआ';
+  String _gpsStatus = '';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _gpsStatus = context.read<LanguageProvider>().translate('gps_not_received');
       context.read<InspectionProvider>().loadInspections(refresh: true);
     });
     _determinePosition();
@@ -45,7 +47,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() => _gpsStatus = 'GPS बंद है');
+        setState(() => _gpsStatus = context.read<LanguageProvider>().translate('gps_disabled'));
         return;
       }
 
@@ -53,27 +55,31 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          setState(() => _gpsStatus = 'GPS अनुमति अस्वीकृत');
+          setState(() => _gpsStatus = context.read<LanguageProvider>().translate('gps_denied'));
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        setState(() => _gpsStatus = 'GPS अनुमति स्थायी रूप से अस्वीकृत');
+        setState(() => _gpsStatus = context.read<LanguageProvider>().translate('gps_denied_forever'));
         return;
       }
 
-      setState(() => _gpsStatus = 'GPS स्थान खोजा जा रहा है...');
+      setState(() => _gpsStatus = context.read<LanguageProvider>().translate('gps_searching'));
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 5),
       );
       setState(() {
         _currentPosition = position;
-        _gpsStatus = 'GPS स्थान: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
+        final isHindi = context.read<LanguageProvider>().isHindi;
+        _gpsStatus = isHindi 
+            ? 'GPS स्थान: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}'
+            : 'GPS Location: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
       });
     } catch (e) {
-      setState(() => _gpsStatus = 'GPS त्रुटि: ${e.toString()}');
+      final errLabel = context.read<LanguageProvider>().translate('gps_error');
+      setState(() => _gpsStatus = '$errLabel: ${e.toString()}');
     }
   }
 
@@ -90,22 +96,30 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
         });
       }
     } catch (e) {
+      final errLabel = context.read<LanguageProvider>().translate('photo_select_error');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('फोटो चुनने में त्रुटि: $e'), backgroundColor: AppTheme.errorColor),
+        SnackBar(content: Text('$errLabel: $e'), backgroundColor: AppTheme.errorColor),
       );
     }
   }
 
   Future<void> _upload() async {
+    final isHindi = context.read<LanguageProvider>().isHindi;
     if (_selectedInspection == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('कृपया एक निरीक्षण चुनें'), backgroundColor: AppTheme.errorColor),
+        SnackBar(
+          content: Text(isHindi ? 'कृपया एक निरीक्षण चुनें' : 'Please select an inspection'),
+          backgroundColor: AppTheme.errorColor,
+        ),
       );
       return;
     }
     if (_imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('कृपया एक फोटो खींचें या चुनें'), backgroundColor: AppTheme.errorColor),
+        SnackBar(
+          content: Text(isHindi ? 'कृपया एक फोटो खींचें या चुनें' : 'Please take or select a photo'),
+          backgroundColor: AppTheme.errorColor,
+        ),
       );
       return;
     }
@@ -126,18 +140,24 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('फोटो सफलतापूर्वक अपलोड किया गया!'), backgroundColor: AppTheme.successColor),
+            SnackBar(
+              content: Text(isHindi ? 'फोटो सफलतापूर्वक अपलोड किया गया!' : 'Photo uploaded successfully!'),
+              backgroundColor: AppTheme.successColor,
+            ),
           );
           Navigator.pop(context);
         }
       } else {
-        throw Exception('सर्वर त्रुटि: ${response.statusCode}');
+        throw Exception(isHindi ? 'सर्वर त्रुटि: ${response.statusCode}' : 'Server error: ${response.statusCode}');
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('अपलोड करने में विफल: $e'), backgroundColor: AppTheme.errorColor),
+          SnackBar(
+            content: Text(isHindi ? 'अपलोड करने में विफल: $e' : 'Failed to upload: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
         );
       }
     }
@@ -150,7 +170,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: const Text('फ़ोटो अपलोड करें', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(context.tr('photo_upload'), style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -169,20 +189,20 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('निरीक्षण चुनें',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                    Text(context.tr('select_inspection'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<InspectionModel>(
                       value: _selectedInspection,
                       isExpanded: true,
                       decoration: InputDecoration(
-                        labelText: 'निरीक्षण सूची *',
+                        labelText: context.tr('inspection_list_label'),
                         prefixIcon: const Icon(Icons.assignment, color: AppTheme.primaryColor),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         filled: true,
                         fillColor: Colors.grey[50],
                       ),
-                      hint: const Text('निरीक्षण चुनें'),
+                      hint: Text(context.tr('select_inspection')),
                       items: inspections.map((ins) {
                         return DropdownMenuItem<InspectionModel>(
                           value: ins,
@@ -200,11 +220,19 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                     ),
                     if (_selectedInspection != null) ...[
                       const SizedBox(height: 16),
-                      Text('ग्राम पंचायत: ${_selectedInspection!.panchayat?.nameHindi ?? _selectedInspection!.panchayat?.name ?? "N/A"}',
-                          style: const TextStyle(fontWeight: FontWeight.w500)),
+                      Text(
+                        context.read<LanguageProvider>().isHindi 
+                            ? 'ग्राम पंचायत: ${_selectedInspection!.panchayat?.nameHindi ?? _selectedInspection!.panchayat?.name ?? "N/A"}' 
+                            : 'Gram Panchayat: ${_selectedInspection!.panchayat?.name ?? _selectedInspection!.panchayat?.nameHindi ?? "N/A"}',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
                       const SizedBox(height: 4),
-                      Text('योजना/परियोजना: ${_selectedInspection!.projectName ?? "N/A"}',
-                          style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                      Text(
+                        context.read<LanguageProvider>().isHindi 
+                            ? 'योजना/परियोजना: ${_selectedInspection!.projectName ?? "N/A"}' 
+                            : 'Project: ${_selectedInspection!.projectName ?? "N/A"}',
+                        style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
                     ]
                   ],
                 ),
@@ -222,8 +250,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('फ़ोटो चयन',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                    Text(context.tr('photo_selection'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
                     const SizedBox(height: 16),
                     _imageFile == null
                         ? Container(
@@ -233,12 +261,12 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.grey[300]!, width: 1),
                             ),
-                            child: const Column(
+                            child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.camera_alt_outlined, size: 48, color: Colors.grey),
-                                SizedBox(height: 8),
-                                Text('कोई फोटो चुनी नहीं गई है', style: TextStyle(color: Colors.grey)),
+                                const Icon(Icons.camera_alt_outlined, size: 48, color: Colors.grey),
+                                const SizedBox(height: 8),
+                                Text(context.tr('no_photo_selected'), style: const TextStyle(color: Colors.grey)),
                               ],
                             ),
                           )
@@ -253,7 +281,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                           child: ElevatedButton.icon(
                             onPressed: () => _pickImage(ImageSource.camera),
                             icon: const Icon(Icons.camera_alt, color: Colors.white),
-                            label: const Text('कैमरा', style: TextStyle(color: Colors.white)),
+                            label: Text(context.tr('camera'), style: const TextStyle(color: Colors.white)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primaryColor,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -265,7 +293,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                           child: ElevatedButton.icon(
                             onPressed: () => _pickImage(ImageSource.gallery),
                             icon: const Icon(Icons.photo_library, color: Colors.white),
-                            label: const Text('गैलरी', style: TextStyle(color: Colors.white)),
+                            label: Text(context.tr('gallery'), style: const TextStyle(color: Colors.white)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.secondaryColor,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -290,8 +318,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('अतिरिक्त जानकारी (Metadata)',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                    Text(context.tr('additional_info_metadata'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
                     const SizedBox(height: 16),
                     // GPS status row
                     Row(
@@ -319,7 +347,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                     TextFormField(
                       controller: _captionController,
                       decoration: InputDecoration(
-                        labelText: 'फ़ोटो का शीर्षक / टिप्पणी (Caption)',
+                        labelText: context.tr('photo_caption'),
                         prefixIcon: const Icon(Icons.comment, color: AppTheme.primaryColor),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         filled: true,
@@ -342,8 +370,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
               ),
               child: _isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('फ़ोटो अपलोड करें',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  : Text(context.tr('photo_upload'),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
             ),
           ],
         ),

@@ -44,5 +44,30 @@ async def get_db():
 
 async def create_tables():
     """Create all database tables."""
+    from sqlalchemy import text
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Check and add new columns to inspections table if they don't exist
+        try:
+            # Check investigator_name
+            res = await conn.execute(text("SHOW COLUMNS FROM inspections LIKE 'investigator_name'"))
+            if not res.fetchone():
+                await conn.execute(text("ALTER TABLE inspections ADD COLUMN investigator_name VARCHAR(200) NULL"))
+            
+            # Check district
+            res = await conn.execute(text("SHOW COLUMNS FROM inspections LIKE 'district'"))
+            if not res.fetchone():
+                await conn.execute(text("ALTER TABLE inspections ADD COLUMN district VARCHAR(100) NULL"))
+                
+            # Check block
+            res = await conn.execute(text("SHOW COLUMNS FROM inspections LIKE 'block'"))
+            if not res.fetchone():
+                await conn.execute(text("ALTER TABLE inspections ADD COLUMN block VARCHAR(100) NULL"))
+                
+            # Check map_image_path
+            res = await conn.execute(text("SHOW COLUMNS FROM inspections LIKE 'map_image_path'"))
+            if not res.fetchone():
+                await conn.execute(text("ALTER TABLE inspections ADD COLUMN map_image_path VARCHAR(500) NULL"))
+        except Exception as e:
+            print(f"Error checking/altering inspections table schema: {e}")
