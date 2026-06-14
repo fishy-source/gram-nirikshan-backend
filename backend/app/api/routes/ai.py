@@ -1,8 +1,8 @@
+# -*- coding: utf-8 -*-
 """
 Gemini AI Assistant routes: chat, inspection guidance, report suggestions.
 Supports Hindi and English language responses.
 """
-# -*- coding: utf-8 -*-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -117,13 +117,7 @@ async def ai_chat(
         if inspection:
             result2 = await db.execute(select(Panchayat).where(Panchayat.id == inspection.panchayat_id))
             panchayat = result2.scalar_one_or_none()
-Context:
-- Inspection: {inspection.title}
-- Panchayat: {panchayat.name if panchayat else 'N/A'} ({panchayat.district if panchayat else 'N/A'})
-- Type: {inspection.inspection_type or 'General'}
-- Status: {inspection.status.value}
-- Observations: {inspection.observations or 'None yet'}
-"""
+            context = f"Context:\n- Inspection: {inspection.title}\n- Panchayat: {panchayat.name if panchayat else 'N/A'} ({panchayat.district if panchayat else 'N/A'})\n- Type: {inspection.inspection_type or 'General'}\n- Status: {inspection.status.value}\n- Observations: {inspection.observations or 'None yet'}\n"
 
     from sqlalchemy import func
     user_inspections_query = await db.execute(select(func.count(Inspection.id)).where(Inspection.engineer_id == current_user.id))
@@ -163,51 +157,11 @@ async def suggest_report(
                     for v in [inspection.title, inspection.project_name, inspection.observations, inspection.recommendations, inspection.description])
 
     if has_hindi:
-        default_obs = 'निरीक्षण किया गया।'
-        prompt = f"""Draft a highly formal and professional Gram Panchayat inspection report (Inspection Memo) in Hindi according to the standards of the Rural Development Department (Gram Panchayat Department).
-
-Inspection Details:
-- Title: {inspection.title}
-- Gram Panchayat: {panchayat.name_hindi or panchayat.name if panchayat else 'N/A'} (District: {inspection.district or (panchayat.district if panchayat else 'N/A')}, Block: {inspection.block or (panchayat.block if panchayat else 'N/A')})
-- Inspection Type: {inspection.inspection_type or 'General'}
-- Project/Work Name: {inspection.project_name or 'N/A'} (Code: {inspection.project_code or 'N/A'})
-- Date: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}
-- Inspector/Engineer: {inspection.investigator_name or current_user.name_hindi or current_user.name} (Designation: {current_user.designation or 'Junior Engineer'})
-
-Observations / Notes:
-{inspection.observations or default_obs}
-{inspection.description or ''}
-
-Draft the full Hindi report under the following sections:
-1. **कार्य का विवरण और मुख्य निष्कर्ष (क्या अच्छा था)**: निरीक्षण का विवरण, कार्य की प्रगति और सकारात्मक निष्कर्ष।
-2. **कमियां / पहचानी गई समस्याएं (क्या कमी थी)**: निरीक्षण के दौरान पाई गई तकनीकी, गुणवत्ता संबंधी या प्रशासनिक कमियां।
-3. **सुधारात्मक कार्रवाई / सिफारिशें (कैसे समाधान किया जाए)**: पहचानी गई कमियों को दूर करने के लिए आवश्यक कार्रवाई और सिफारिशें।
-4. **निष्कर्ष**: कार्य की गुणवत्ता पर अंतिम टिप्पणी और आगे के कदम।
-
-Ensure the report is professional, grammatically correct, and written in clear technical standard Hindi suitable for senior administration."""
+        default_obs = 'निरीक्षण किया गया.'
+        prompt = f"Draft a highly formal and professional Gram Panchayat inspection report (Inspection Memo) in Hindi according to the standards of the Rural Development Department (Gram Panchayat Department).\n\nInspection Details:\n- Title: {inspection.title}\n- Gram Panchayat: {panchayat.name_hindi or panchayat.name if panchayat else 'N/A'} (District: {inspection.district or (panchayat.district if panchayat else 'N/A')}, Block: {inspection.block or (panchayat.block if panchayat else 'N/A')})\n- Inspection Type: {inspection.inspection_type or 'General'}\n- Project/Work Name: {inspection.project_name or 'N/A'} (Code: {inspection.project_code or 'N/A'})\n- Date: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}\n- Inspector/Engineer: {inspection.investigator_name or current_user.name_hindi or current_user.name} (Designation: {current_user.designation or 'Junior Engineer'})\n\nObservations / Notes:\n{inspection.observations or default_obs}\n{inspection.description or ''}\n\nDraft the full Hindi report under the following sections:\n1. **कार्य का विवरण और मुख्य निष्कर्ष (क्या अच्छा था)**: निरीक्षण का विवरण, कार्य की प्रगति और सकारात्मक निष्कर्ष.\n2. **कमियां / पहचानी गई समस्याएं (क्या कमी थी)**: निरीक्षण के दौरान पाई गई तकनीकी, गुणवत्ता संबंधी या प्रशासनिक कमियां.\n3. **सुधारात्मक कार्रवाई / सिफारिशें (कैसे समाधान किया जाए)**: पहचानी गई कमियों को दूर करने के लिए आवश्यक कार्रवाई और सिफारिशें.\n4. **निष्कर्ष**: कार्य की गुणवत्ता पर अंतिम टिप्पणी और आगे के कदम.\n\nEnsure the report is professional, grammatically correct, and written in clear technical standard Hindi suitable for senior administration."
         response = await call_gemini(prompt, "hi")
     else:
-        prompt = f"""Draft a highly formal and professional Gram Panchayat inspection report (Inspection Memo) in English according to the standards of the Rural Development Department.
-
-Inspection Details:
-- Title: {inspection.title}
-- Gram Panchayat: {panchayat.name or panchayat.name_hindi if panchayat else 'N/A'} (District: {inspection.district or (panchayat.district if panchayat else 'N/A')}, Block: {inspection.block or (panchayat.block if panchayat else 'N/A')})
-- Inspection Type: {inspection.inspection_type or 'General'}
-- Project/Work Name: {inspection.project_name or 'N/A'} (Code: {inspection.project_code or 'N/A'})
-- Date: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}
-- Inspector/Engineer: {inspection.investigator_name or current_user.name or current_user.name_hindi} (Designation: {current_user.designation or 'Junior Engineer'})
-
-Observations / Notes:
-{inspection.observations or 'Site inspection conducted.'}
-{inspection.description or ''}
-
-Draft the full English report under the following sections:
-1. **Work Description & Key Findings (What was good)**: Details of the site inspection, work progress, and positive findings.
-2. **Deficiencies / Issues Identified (What was lacking)**: Technical, quality-related, or administrative deficiencies observed during the inspection.
-3. **Corrective Actions / Recommendations (What can be resolved)**: Necessary corrective actions and recommendations to resolve the identified deficiencies.
-4. **Conclusion**: Final remarks on work quality and next steps.
-
-Ensure the report is professional, grammatically correct, and written in clear technical English suitable for senior administration."""
+        prompt = f"Draft a highly formal and professional Gram Panchayat inspection report (Inspection Memo) in English according to the standards of the Rural Development Department.\n\nInspection Details:\n- Title: {inspection.title}\n- Gram Panchayat: {panchayat.name or panchayat.name_hindi if panchayat else 'N/A'} (District: {inspection.district or (panchayat.district if panchayat else 'N/A')}, Block: {inspection.block or (panchayat.block if panchayat else 'N/A')})\n- Inspection Type: {inspection.inspection_type or 'General'}\n- Project/Work Name: {inspection.project_name or 'N/A'} (Code: {inspection.project_code or 'N/A'})\n- Date: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}\n- Inspector/Engineer: {inspection.investigator_name or current_user.name or current_user.name_hindi} (Designation: {current_user.designation or 'Junior Engineer'})\n\nObservations / Notes:\n{inspection.observations or 'Site inspection conducted.'}\n{inspection.description or ''}\n\nDraft the full English report under the following sections:\n1. **Work Description & Key Findings (What was good)**: Details of the site inspection, work progress, and positive findings.\n2. **Deficiencies / Issues Identified (What was lacking)**: Technical, quality-related, or administrative deficiencies observed during the inspection.\n3. **Corrective Actions / Recommendations (What can be resolved)**: Necessary corrective actions and recommendations to resolve the identified deficiencies.\n4. **Conclusion**: Final remarks on work quality and next steps.\n\nEnsure the report is professional, grammatically correct, and written in clear technical English suitable for senior administration."
         response = await call_gemini(prompt, "en")
 
     # Store AI draft
@@ -224,20 +178,9 @@ async def inspection_guide(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get AI guidance for conducting a specific type of inspection."""
-    prompt = f"""Provide a step-by-step inspection checklist and guidance for:
-    
-Inspection Type: {inspection_type}
-Context: Gram Panchayat field inspection in India
-
-Include:
-1. Pre-inspection preparation
-2. On-site checklist (10-15 items)
-3. Documentation requirements
-4. Common issues to look for
-5. Safety guidelines
-
-Language: {'Hindi' if language == 'hi' else 'English'}"""
+    # Get AI guidance for conducting a specific type of inspection.
+    lang_str = 'Hindi' if language == 'hi' else 'English'
+    prompt = f"Provide a step-by-step inspection checklist and guidance for:\n\nInspection Type: {inspection_type}\nContext: Gram Panchayat field inspection in India\n\nInclude:\n1. Pre-inspection preparation\n2. On-site checklist (10-15 items)\n3. Documentation requirements\n4. Common issues to look for\n5. Safety guidelines\n\nLanguage: {lang_str}"
 
     response = await call_gemini(prompt, language)
     return AIChatResponse(response=response)
