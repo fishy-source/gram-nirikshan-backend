@@ -14,6 +14,9 @@ class UserRole(str, Enum):
     ADMIN = "admin"
     INSPECTOR = "inspector"
     VIEWER = "viewer"
+    JE = "je" # Backwards compatibility
+    AE = "ae"
+    XEN = "xen"
 
 
 class InspectionStatus(str, Enum):
