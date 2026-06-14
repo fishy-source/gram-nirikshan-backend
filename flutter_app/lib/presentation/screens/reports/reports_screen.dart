@@ -67,16 +67,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  Future<void> _downloadAndViewReport(String inspectionId, String title) async {
+  Future<void> _downloadAndViewReport(String inspectionId, String title, String format) async {
     setState(() {
       _downloadingMap[inspectionId] = true;
       _downloadProgressMap[inspectionId] = 0.0;
     });
 
     try {
-      final downloadUrl = await ApiService().getReportDownloadUrl(inspectionId);
+      final downloadUrl = await ApiService().getReportDownloadUrl(inspectionId, format: format);
       final dir = await getApplicationDocumentsDirectory();
-      final savePath = '${dir.path}/Report_$inspectionId.pdf';
+      final savePath = '${dir.path}/Report_${format}_$inspectionId.pdf';
 
       // Download file using Dio
       final dio = Dio();
@@ -162,7 +162,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  Future<void> _shareReportFile(String inspectionId, String title) async {
+  Future<void> _shareReportFile(String inspectionId, String title, String format) async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -181,9 +181,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
 
     try {
-      final downloadUrl = await ApiService().getReportDownloadUrl(inspectionId);
+      final downloadUrl = await ApiService().getReportDownloadUrl(inspectionId, format: format);
       final dir = await getTemporaryDirectory();
-      final savePath = '${dir.path}/Report_$inspectionId.pdf';
+      final savePath = '${dir.path}/Report_${format}_$inspectionId.pdf';
 
       // Download file using Dio
       final dio = Dio();
@@ -521,18 +521,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                     ),
                                     const SizedBox(width: 8),
 
-                                    // Button to Download and View PDF
+                                    // Buttons for English PDF
                                     IconButton(
                                       icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                                      tooltip: context.tr('view_reports'),
-                                      onPressed: () => _downloadAndViewReport(ins.id, ins.title),
+                                      tooltip: context.tr('view_reports') + ' (EN)',
+                                      onPressed: () => _downloadAndViewReport(ins.id, ins.title, 'pdf_en'),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.share, color: Colors.redAccent),
+                                      tooltip: 'Share English PDF',
+                                      onPressed: () => _shareReportFile(ins.id, ins.title, 'pdf_en'),
                                     ),
 
-                                    // Button to share PDF file
+                                    // Buttons for Hindi PDF
                                     IconButton(
-                                      icon: const Icon(Icons.share, color: AppTheme.secondaryColor),
-                                      tooltip: context.tr('share'),
-                                      onPressed: () => _shareReportFile(ins.id, ins.title),
+                                      icon: const Icon(Icons.picture_as_pdf, color: Colors.orange),
+                                      tooltip: context.tr('view_reports') + ' (HI)',
+                                      onPressed: () => _downloadAndViewReport(ins.id, ins.title, 'pdf_hi'),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.share, color: Colors.orangeAccent),
+                                      tooltip: 'Share Hindi PDF',
+                                      onPressed: () => _shareReportFile(ins.id, ins.title, 'pdf_hi'),
                                     ),
                                     
                                     const SizedBox(width: 8),

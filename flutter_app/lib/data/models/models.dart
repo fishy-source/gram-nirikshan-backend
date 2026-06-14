@@ -6,6 +6,7 @@ class UserModel {
   final String name;
   final String? nameHindi;
   final String? email;
+  final String? aadharNumber;
   final String role;
   final String? employeeId;
   final String? designation;
@@ -21,6 +22,7 @@ class UserModel {
     required this.name,
     this.nameHindi,
     this.email,
+    this.aadharNumber,
     required this.role,
     this.employeeId,
     this.designation,
@@ -37,6 +39,7 @@ class UserModel {
         name: json['name'],
         nameHindi: json['name_hindi'],
         email: json['email'],
+        aadharNumber: json['aadhar_number'],
         role: json['role'],
         employeeId: json['employee_id'],
         designation: json['designation'],
@@ -49,17 +52,15 @@ class UserModel {
 
   Map<String, dynamic> toJson() => {
         'id': id, 'mobile': mobile, 'name': name, 'name_hindi': nameHindi,
-        'email': email, 'role': role, 'employee_id': employeeId,
+        'email': email, 'aadhar_number': aadharNumber, 'role': role, 'employee_id': employeeId,
         'designation': designation, 'department': department,
         'district': district, 'block': block,
         'profile_photo': profilePhoto, 'is_active': isActive,
       };
 
-  bool get isAdmin => role == 'admin';
-  bool get isJE => role == 'je';
-  bool get isAE => role == 'ae';
-  bool get isXEN => role == 'xen';
-  bool get canApprove => role == 'ae' || role == 'xen' || role == 'admin';
+  bool get isAdmin => role == 'admin' || role == 'superadmin';
+  bool get isInspector => role == 'inspector';
+  bool get canApprove => role == 'admin' || role == 'superadmin';
 }
 
 
@@ -179,7 +180,7 @@ class InspectionModel {
   bool get isCheckedIn => checkinTime != null && checkoutTime == null;
   String get statusLabel {
     const labels = {
-      'draft': 'मसौदा', 'submitted': 'जमा किया', 'verified': 'सत्यापित',
+      'draft': 'मसौदा', 'submitted': 'जमा किया', 'forwarded': 'अग्रेषित',
       'approved': 'स्वीकृत', 'rejected': 'अस्वीकृत',
     };
     return labels[status] ?? status;
@@ -216,7 +217,7 @@ class DashboardStats {
   final int totalInspections;
   final int draftCount;
   final int submittedCount;
-  final int verifiedCount;
+  final int forwardedCount;
   final int approvedCount;
   final int rejectedCount;
   final int totalPanchayats;
@@ -226,7 +227,7 @@ class DashboardStats {
 
   DashboardStats({
     required this.totalInspections, required this.draftCount,
-    required this.submittedCount, required this.verifiedCount,
+    required this.submittedCount, required this.forwardedCount,
     required this.approvedCount, required this.rejectedCount,
     required this.totalPanchayats, required this.totalEngineers,
     required this.thisMonthInspections, required this.pendingApprovals,
@@ -236,7 +237,7 @@ class DashboardStats {
         totalInspections: json['total_inspections'] ?? 0,
         draftCount: json['draft_count'] ?? 0,
         submittedCount: json['submitted_count'] ?? 0,
-        verifiedCount: json['verified_count'] ?? 0,
+        forwardedCount: json['forwarded_count'] ?? 0,
         approvedCount: json['approved_count'] ?? 0,
         rejectedCount: json['rejected_count'] ?? 0,
         totalPanchayats: json['total_panchayats'] ?? 0,

@@ -8,6 +8,11 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     fonts-liberation \
     fontconfig \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libcairo2 \
+    fonts-noto-core \
+    fonts-noto-devanagari \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

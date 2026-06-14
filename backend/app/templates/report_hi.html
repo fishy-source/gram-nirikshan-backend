@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <title>निरीक्षण रिपोर्ट</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm;
+            @bottom-center {
+                content: "पृष्ठ " counter(page) " / " counter(pages);
+                font-size: 10pt;
+                color: #555;
+                font-family: 'Noto Sans Devanagari', sans-serif;
+            }
+        }
+        body {
+            font-family: 'Noto Sans Devanagari', sans-serif;
+            color: #333;
+            line-height: 1.5;
+            font-size: 11pt;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #2e7d32;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #2e7d32;
+            margin: 0;
+            font-size: 24pt;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section h2 {
+            color: #fff;
+            background-color: #2e7d32;
+            padding: 5px 10px;
+            font-size: 14pt;
+            border-radius: 3px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            width: 25%;
+        }
+        .photo-grid {
+            display: block;
+            width: 100%;
+        }
+        .photo-item {
+            display: inline-block;
+            width: 45%;
+            margin: 2%;
+            text-align: center;
+        }
+        .photo-item img {
+            max-width: 100%;
+            border: 1px solid #ccc;
+            padding: 2px;
+        }
+        .photo-caption {
+            font-size: 9pt;
+            color: #555;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>निरीक्षण रिपोर्ट</h1>
+    </div>
+
+    <div class="section">
+        <h2>मूल जानकारी</h2>
+        <table>
+            <tr>
+                <th>निरीक्षण आईडी</th>
+                <td>{{ inspection.inspection_id }}</td>
+                <th>स्थिति</th>
+                <td style="text-transform: capitalize;">{{ status_hi }}</td>
+            </tr>
+            <tr>
+                <th>निरीक्षक</th>
+                <td>{{ engineer_name }}</td>
+                <th>जनपद</th>
+                <td>{{ panchayat.district if panchayat else 'उपलब्ध नहीं' }}</td>
+            </tr>
+            <tr>
+                <th>ग्राम पंचायत</th>
+                <td>{{ panchayat.name_hindi or panchayat.name if panchayat else 'उपलब्ध नहीं' }}</td>
+                <th>ग्राम</th>
+                <td>{{ panchayat.village if panchayat else 'उपलब्ध नहीं' }}</td>
+            </tr>
+            <tr>
+                <th>विकास खंड</th>
+                <td>{{ panchayat.block if panchayat else 'उपलब्ध नहीं' }}</td>
+                <th>तिथि</th>
+                <td>{{ inspection.inspection_date.strftime('%Y-%m-%d') if inspection.inspection_date else 'उपलब्ध नहीं' }}</td>
+            </tr>
+            <tr>
+                <th>परियोजना का नाम</th>
+                <td>{{ inspection.project_name or 'उपलब्ध नहीं' }}</td>
+                <th>कार्य कोड</th>
+                <td>{{ inspection.project_code or 'उपलब्ध नहीं' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>स्थान एवं जीपीएस ट्रैकिंग</h2>
+        <table>
+            <tr>
+                <th>चेक-इन समय</th>
+                <td>{{ inspection.checkin_time.strftime('%Y-%m-%d %H:%M') if inspection.checkin_time else 'उपलब्ध नहीं' }}</td>
+                <th>चेक-इन जीपीएस</th>
+                <td>{{ inspection.checkin_latitude }}, {{ inspection.checkin_longitude }}</td>
+            </tr>
+            <tr>
+                <th>चेक-आउट समय</th>
+                <td>{{ inspection.checkout_time.strftime('%Y-%m-%d %H:%M') if inspection.checkout_time else 'उपलब्ध नहीं' }}</td>
+                <th>चेक-आउट जीपीएस</th>
+                <td>{{ inspection.checkout_latitude }}, {{ inspection.checkout_longitude }}</td>
+            </tr>
+        </table>
+    </div>
+
+    {% if map_image %}
+    <div class="section">
+        <h2>निरीक्षण स्थान का नक्शा</h2>
+        <div style="text-align: center;">
+            <img src="{{ map_image }}" alt="नक्शा" style="max-width: 80%; border: 1px solid #333;">
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <h2>विस्तृत निरीक्षण रिपोर्ट</h2>
+        <div style="white-space: pre-wrap;">{{ ai_report_content }}</div>
+    </div>
+
+    {% if photos %}
+    <div class="section" style="page-break-before: always;">
+        <h2>चित्र</h2>
+        <div class="photo-grid">
+            {% for photo in photos %}
+            <div class="photo-item">
+                <img src="{{ photo.absolute_path }}" alt="स्थल का चित्र">
+                <div class="photo-caption">{{ photo.caption or 'स्थल का चित्र' }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if approvals %}
+    <div class="section">
+        <h2>स्वीकृति विवरण</h2>
+        <table>
+            <tr>
+                <th>स्तर</th>
+                <th>अधिकारी</th>
+                <th>स्थिति</th>
+                <th>टिप्पणी</th>
+                <th>तिथि</th>
+            </tr>
+            {% for apprv in approvals %}
+            <tr>
+                <td>{{ apprv.level }}</td>
+                <td>{{ apprv.approver.name_hindi or apprv.approver.name if apprv.approver else 'उपलब्ध नहीं' }}</td>
+                <td>{{ apprv.action_hi }}</td>
+                <td>{{ apprv.remarks or '' }}</td>
+                <td>{{ apprv.updated_at.strftime('%Y-%m-%d') if apprv.updated_at else '' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+</body>
+</html>

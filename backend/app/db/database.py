@@ -50,6 +50,14 @@ async def create_tables():
         
         # Check and add new columns to inspections table if they don't exist
         try:
+            # Modify role column in users to VARCHAR instead of ENUM to support new roles
+            await conn.execute(text("ALTER TABLE users MODIFY COLUMN role VARCHAR(50) NOT NULL DEFAULT 'inspector'"))
+            
+            # Check aadhar_number in users
+            res = await conn.execute(text("SHOW COLUMNS FROM users LIKE 'aadhar_number'"))
+            if not res.fetchone():
+                await conn.execute(text("ALTER TABLE users ADD COLUMN aadhar_number VARCHAR(12) NULL UNIQUE"))
+                
             # Check investigator_name
             res = await conn.execute(text("SHOW COLUMNS FROM inspections LIKE 'investigator_name'"))
             if not res.fetchone():

@@ -98,7 +98,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
                   ),
                 ),
                 actions: [
-                  IconButton(icon: const Icon(Icons.share_rounded, color: Colors.white), onPressed: () => _shareReport(inspection)),
+                  IconButton(icon: const Icon(Icons.share_rounded, color: Colors.white), onPressed: () => _showLanguageSelection(inspection)),
                   IconButton(icon: const Icon(Icons.more_vert, color: Colors.white), onPressed: () => _showOptions(inspection, user)),
                 ],
                 bottom: TabBar(
@@ -174,8 +174,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
               _InfoRow(Icons.info_outline_rounded, context.tr('current_status'), context.tr(inspection.status)),
               if (inspection.status == 'submitted')
                 _InfoRow(Icons.person_outline_rounded, context.tr('sent_to'), context.tr('ae_pending')),
-              if (inspection.status == 'verified')
-                _InfoRow(Icons.person_outline_rounded, context.tr('sent_to'), context.tr('xen_pending')),
+              if (inspection.status == 'forwarded')
+                _InfoRow(Icons.forward_rounded, context.tr('sent_to'), context.tr('xen_pending')),
               if (inspection.status == 'approved')
                 _InfoRow(Icons.check_circle_outline_rounded, context.tr('verification_approval'), context.tr('officer_approved')),
               if (inspection.status == 'rejected')
@@ -344,7 +344,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
             ),
           ],
           const SizedBox(height: 20),
-          if (user?.isJE == true || user?.isAdmin == true) ...[
+          if (user?.isInspector == true || user?.isAdmin == true) ...[
             if (inspection.checkinTime == null)
               ElevatedButton.icon(
                 onPressed: _gpsLoading ? null : () => _handleCheckIn(inspection, provider),
@@ -433,13 +433,19 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           const SizedBox(height: 20),
 
           // Approval Trail / History
-          if (provider.approvals.isNotEmpty) ...[
+          if (user?.canApprove == true && provider.approvals.isNotEmpty) ...[
             _buildApprovalHistoryCard(provider.approvals),
             const SizedBox(height: 20),
           ],
 
+          // Forward Action
+          if (inspection.status != 'approved' && inspection.status != 'rejected') ...[
+            _buildForwardAction(inspection, provider),
+            const SizedBox(height: 20),
+          ],
+
           // Approval Action (for approvers)
-          if (user?.canApprove == true && inspection.status == 'submitted') ...[
+          if (user?.canApprove == true && (inspection.status == 'submitted' || inspection.status == 'forwarded')) ...[
             _buildApprovalActions(inspection, provider),
           ],
         ],
@@ -451,10 +457,10 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     final steps = [
       (context.tr('draft'), 'draft', Icons.edit_rounded),
       (context.tr('submitted'), 'submitted', Icons.send_rounded),
-      (context.tr('verified'), 'verified', Icons.verified_rounded),
+      (context.tr('forwarded'), 'forwarded', Icons.forward_rounded),
       (context.tr('approved'), 'approved', Icons.check_circle_rounded),
     ];
-    final statusOrder = ['draft', 'submitted', 'verified', 'approved'];
+    final statusOrder = ['draft', 'submitted', 'forwarded', 'approved'];
     final currentIdx = statusOrder.indexOf(status);
 
     return Container(
@@ -527,21 +533,145 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
             )),
             const SizedBox(width: 12),
             Expanded(child: OutlinedButton.icon(
-              onPressed: () => _handleApprovalAction(inspection.id, 'rejected', _remarksCtrl.text, provider),
+              onPressed: () {
+                if (_remarksCtrl.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(context.read<LanguageProvider>().isHindi ? 'अस्वीकृत करने के लिए कारण (Remarks) लिखना अनिवार्य है' : 'Remarks are required for rejection'),
+                    backgroundColor: AppTheme.errorColor,
+                  ));
+                  return;
+                }
+                _handleApprovalAction(inspection.id, 'rejected', _remarksCtrl.text, provider);
+              },
               icon: const Icon(Icons.close_rounded),
               label: Text(context.tr('reject')),
               style: OutlinedButton.styleFrom(foregroundColor: AppTheme.errorColor, side: const BorderSide(color: AppTheme.errorColor)),
             )),
           ]),
-          const SizedBox(height: 8),
-          SizedBox(width: double.infinity, child: OutlinedButton.icon(
-            onPressed: () => _handleApprovalAction(inspection.id, 'forwarded', _remarksCtrl.text, provider),
-            icon: const Icon(Icons.forward_rounded),
-            label: Text(context.tr('forward')),
-          )),
         ],
       ),
     );
+  }
+
+  Widget _buildForwardAction(InspectionModel inspection, InspectionProvider provider) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: () => _showForwardModal(context, inspection, provider),
+        icon: const Icon(Icons.forward_rounded),
+        label: Text(context.tr('forward')),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: AppTheme.primaryColor,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          side: const BorderSide(color: AppTheme.primaryColor),
+          elevation: 2,
+        ),
+      ),
+    );
+  }
+
+  void _showForwardModal(BuildContext context, InspectionModel inspection, InspectionProvider provider) {
+    final designationCtrl = TextEditingController();
+    final contactCtrl = TextEditingController();
+    final remarksCtrl = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(context.read<LanguageProvider>().isHindi ? 'निरीक्षण अग्रेषित करें' : 'Forward Inspection'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Autocomplete<String>(
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    final options = ['AE', 'XEN', 'CDO', 'DPRO', 'DM', 'SDM', 'BDO'];
+                    if (textEditingValue.text.isEmpty) {
+                      return options;
+                    }
+                    return options.where((String option) {
+                      return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                    });
+                  },
+                  onSelected: (String selection) {
+                    designationCtrl.text = selection;
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                    // Update main controller when this changes
+                    controller.addListener(() {
+                      designationCtrl.text = controller.text;
+                    });
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        labelText: context.read<LanguageProvider>().isHindi ? 'प्राप्तकर्ता का पद (चुनें या टाइप करें)' : 'Recipient Designation (Type or Select)',
+                        border: const OutlineInputBorder(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: contactCtrl,
+                  decoration: InputDecoration(
+                    labelText: context.read<LanguageProvider>().isHindi ? 'प्राप्तकर्ता का मोबाइल/ईमेल' : 'Recipient Contact',
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: remarksCtrl,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: context.read<LanguageProvider>().isHindi ? 'टिप्पणी (वैकल्पिक)' : 'Remarks (Optional)',
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.read<LanguageProvider>().isHindi ? 'रद्द करें' : 'Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (designationCtrl.text.isEmpty || contactCtrl.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(context.read<LanguageProvider>().isHindi ? 'पद और संपर्क अनिवार्य हैं' : 'Designation and contact are required')),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx);
+                _handleForwardAction(inspection.id, designationCtrl.text, contactCtrl.text, remarksCtrl.text, provider);
+              },
+              child: Text(context.read<LanguageProvider>().isHindi ? 'अग्रेषित करें' : 'Forward'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _handleForwardAction(String id, String designation, String contact, String remarks, InspectionProvider provider) async {
+    final success = await provider.forwardInspection(id, designation, contact, remarks);
+    if (mounted) {
+      final isHindi = context.read<LanguageProvider>().isHindi;
+      String msg = success 
+          ? (isHindi ? "➡️ निरीक्षण सफलतापूर्वक अग्रेषित (Forward) कर दिया गया है।" : "➡️ Inspection forwarded successfully.")
+          : (isHindi ? "⚠️ कार्रवाई विफल रही। कृपया पुनः प्रयास करें।" : "⚠️ Action failed. Please try again.");
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: success ? AppTheme.successColor : AppTheme.errorColor,
+        ),
+      );
+    }
   }
 
   Future<void> _handleApprovalAction(String id, String action, String remarks, InspectionProvider provider) async {
@@ -579,7 +709,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, -2))],
       ),
       child: Row(children: [
-        if (inspection.isDraft && (user?.isJE == true || user?.isAdmin == true)) ...[
+        if (inspection.isDraft && (user?.isInspector == true || user?.isAdmin == true)) ...[
           Expanded(child: ElevatedButton.icon(
             onPressed: () => _handleSubmit(inspection, provider),
             icon: const Icon(Icons.send_rounded, size: 18),
@@ -588,14 +718,14 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           )),
         ] else ...[
           Expanded(child: ElevatedButton.icon(
-            onPressed: () => _generateReport(inspection),
+            onPressed: () => _showLanguageSelection(inspection),
             icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
             label: Text(context.tr('pdf_report')),
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
           )),
           const SizedBox(width: 8),
           Expanded(child: OutlinedButton.icon(
-            onPressed: () => _shareReport(inspection),
+            onPressed: () => _showLanguageSelection(inspection),
             icon: const Icon(Icons.share_rounded, size: 18),
             label: Text(context.tr('share')),
           )),
@@ -737,24 +867,50 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     }
   }
 
-  Future<void> _generateReport(InspectionModel inspection) async {
-    Navigator.pushNamed(
-      context,
-      '/reports/preview',
-      arguments: {
-        'inspectionId': inspection.id,
-        'title': inspection.title,
-      },
+  Future<void> _showLanguageSelection(InspectionModel inspection) async {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                context.read<LanguageProvider>().isHindi ? 'रिपोर्ट की भाषा चुनें' : 'Select Report Language',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.language_rounded, color: Colors.blue),
+              title: const Text('English (अंग्रेज़ी)'),
+              onTap: () {
+                Navigator.pop(context);
+                _openPdfPreview(inspection, 'pdf_en');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.language_rounded, color: Colors.green),
+              title: const Text('Hindi (हिन्दी)'),
+              onTap: () {
+                Navigator.pop(context);
+                _openPdfPreview(inspection, 'pdf_hi');
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  void _shareReport(InspectionModel inspection) {
+  void _openPdfPreview(InspectionModel inspection, String format) {
     Navigator.pushNamed(
       context,
       '/reports/preview',
       arguments: {
         'inspectionId': inspection.id,
         'title': inspection.title,
+        'format': format,
       },
     );
   }
@@ -763,9 +919,9 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     showModalBottomSheet(context: context, builder: (_) => SafeArea(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         ListTile(leading: const Icon(Icons.picture_as_pdf_rounded), title: Text(context.tr('generate_pdf')),
-            onTap: () { Navigator.pop(context); _generateReport(inspection); }),
+            onTap: () { Navigator.pop(context); _showLanguageSelection(inspection); }),
         ListTile(leading: const Icon(Icons.share_rounded), title: Text(context.tr('share')),
-            onTap: () { Navigator.pop(context); _shareReport(inspection); }),
+            onTap: () { Navigator.pop(context); _showLanguageSelection(inspection); }),
         if (inspection.panchayat?.latitude != null)
           ListTile(
             leading: const Icon(Icons.map_rounded),

@@ -231,7 +231,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       case 'rejected':
         return AppTheme.errorColor;
       case 'submitted':
-      case 'verified':
+      case 'forwarded':
         return AppTheme.warningColor;
       default:
         return AppTheme.primaryColor;

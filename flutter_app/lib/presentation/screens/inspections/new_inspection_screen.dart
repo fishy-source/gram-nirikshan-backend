@@ -12,6 +12,7 @@ import '../../providers/inspection_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../providers/language_provider.dart';
+import 'map_picker_screen.dart';
 
 class NewInspectionScreen extends StatefulWidget {
   const NewInspectionScreen({super.key});
@@ -1002,26 +1003,45 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            Container(
-                              height: 180,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey[300]!, width: 1),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: GoogleMap(
-                                  onMapCreated: _onMapCreated,
-                                  initialCameraPosition: CameraPosition(
-                                    target: _currentPosition != null
-                                        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-                                        : const LatLng(AppConstants.defaultLat, AppConstants.defaultLng),
-                                    zoom: _currentPosition != null ? 16.0 : 8.0,
-                                  ),
-                                  markers: _buildMapMarkers(),
-                                  myLocationEnabled: true,
-                                  myLocationButtonEnabled: false,
-                                  zoomControlsEnabled: true,
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => MapPickerScreen(
+                                        initialLat: _currentPosition?.latitude,
+                                        initialLng: _currentPosition?.longitude,
+                                      ),
+                                    ),
+                                  );
+                                  if (result != null) {
+                                    setState(() {
+                                      _currentPosition = Position(
+                                        latitude: result['latitude'],
+                                        longitude: result['longitude'],
+                                        timestamp: DateTime.now(),
+                                        accuracy: 100,
+                                        altitude: 0,
+                                        heading: 0,
+                                        speed: 0,
+                                        speedAccuracy: 0,
+                                        altitudeAccuracy: 0,
+                                        headingAccuracy: 0,
+                                      );
+                                      _gpsStatus = 'Selected: ${result['address']}';
+                                    });
+                                  }
+                                },
+                                icon: const Icon(Icons.map, color: Colors.white),
+                                label: Text(
+                                  context.read<LanguageProvider>().isHindi ? 'नक्शे से स्थान चुनें' : 'Pick Location from Map',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryColor,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
                                 ),
                               ),
                             ),

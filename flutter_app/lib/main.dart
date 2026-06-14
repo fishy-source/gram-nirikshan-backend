@@ -23,6 +23,7 @@ import 'presentation/screens/reports/reports_screen.dart';
 import 'presentation/screens/reports/pdf_preview_screen.dart';
 import 'presentation/screens/map/map_screen.dart';
 import 'presentation/screens/calendar/calendar_screen.dart';
+import 'presentation/screens/users/add_user_screen.dart';
 import 'presentation/providers/language_provider.dart';
 
 void main() async {
@@ -92,6 +93,7 @@ class _GramNirikshanAppState extends State<GramNirikshanApp> {
         '/reports': (_) => const ReportsScreen(),
         '/map': (_) => const MapScreen(),
         '/calendar': (_) => const CalendarScreen(),
+        '/users/add': (_) => const AddUserScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/inspections/detail') {
@@ -104,6 +106,7 @@ class _GramNirikshanAppState extends State<GramNirikshanApp> {
             builder: (_) => PdfPreviewScreen(
               inspectionId: args['inspectionId'] as String,
               title: args['title'] as String,
+              format: args['format'] as String? ?? 'pdf_en',
             ),
           );
         }

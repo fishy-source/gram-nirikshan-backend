@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/api_service.dart';
@@ -127,9 +130,51 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
     setState(() => _isLoading = true);
 
     try {
+      File fileToUpload = _imageFile!;
+      
+      // Watermark logic if GPS is available
+      if (_currentPosition != null) {
+        try {
+          final bytes = await fileToUpload.readAsBytes();
+          img.Image? originalImage = img.decodeImage(bytes);
+          
+          if (originalImage != null) {
+            final timestamp = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+            final watermarkText = 'Lat: ${_currentPosition!.latitude.toStringAsFixed(5)} Lng: ${_currentPosition!.longitude.toStringAsFixed(5)} Time: $timestamp';
+            
+            // Draw text background
+            img.fillRect(
+              originalImage,
+              x1: 0,
+              y1: originalImage.height - 40,
+              x2: originalImage.width,
+              y2: originalImage.height,
+              color: img.ColorRgba8(0, 0, 0, 128),
+            );
+            
+            // Draw text
+            img.drawString(
+              originalImage,
+              watermarkText,
+              font: img.arial24,
+              x: 10,
+              y: originalImage.height - 30,
+              color: img.ColorRgb8(255, 255, 255),
+            );
+            
+            final watermarkedBytes = img.encodeJpg(originalImage, quality: 85);
+            final tempDir = await getTemporaryDirectory();
+            fileToUpload = File('${tempDir.path}/watermarked_${DateTime.now().millisecondsSinceEpoch}.jpg');
+            await fileToUpload.writeAsBytes(watermarkedBytes);
+          }
+        } catch (e) {
+          debugPrint('Watermarking failed: $e');
+        }
+      }
+
       final response = await ApiService().uploadPhoto(
         inspectionId: _selectedInspection!.id,
-        filePath: _imageFile!.path,
+        filePath: fileToUpload.path,
         latitude: _currentPosition?.latitude ?? AppConstants.defaultLat,
         longitude: _currentPosition?.longitude ?? AppConstants.defaultLng,
         caption: _captionController.text.trim().isEmpty ? null : _captionController.text.trim(),

@@ -38,7 +38,7 @@ class AppConstants {
   static const Map<String, String> statusLabels = {
     'draft': 'मसौदा',
     'submitted': 'जमा किया',
-    'verified': 'सत्यापित',
+    'forwarded': 'अग्रेषित',
     'approved': 'स्वीकृत',
     'rejected': 'अस्वीकृत',
   };

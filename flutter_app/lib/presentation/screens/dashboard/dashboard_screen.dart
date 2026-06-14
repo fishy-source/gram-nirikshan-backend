@@ -148,8 +148,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildStatsGrid(DashboardStats stats) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final isHindi = context.read<LanguageProvider>().isHindi;
+    final String totalLabel = (user?.isInspector ?? false) 
+        ? (isHindi ? 'आपके द्वारा किए गए कुल निरीक्षण' : 'Total Inspections Conducted by You')
+        : context.tr('total_inspections');
+
     final items = [
-      _StatItem(context.tr('total_inspections'), stats.totalInspections.toString(), Icons.assignment_rounded, AppTheme.primaryColor),
+      _StatItem(totalLabel, stats.totalInspections.toString(), Icons.assignment_rounded, AppTheme.primaryColor),
       _StatItem(context.tr('this_month'), stats.thisMonthInspections.toString(), Icons.calendar_month_rounded, AppTheme.infoColor),
       _StatItem(context.tr('approved'), stats.approvedCount.toString(), Icons.check_circle_rounded, AppTheme.successColor),
       _StatItem(context.tr('submitted'), stats.submittedCount.toString(), Icons.pending_rounded, AppTheme.warningColor),
@@ -240,6 +246,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _QuickAction(context.tr('view_reports'), Icons.picture_as_pdf_rounded, AppTheme.errorColor, '/reports'),
       _QuickAction(context.tr('photo_upload'), Icons.camera_alt_rounded, AppTheme.secondaryColor, '/photos'),
     ];
+
+    final user = context.watch<AuthProvider>().currentUser;
+    if (user != null && (user.isAdmin || user.role == 'superadmin')) {
+      actions.add(_QuickAction(
+        context.read<LanguageProvider>().isHindi ? 'नया यूज़र जोड़ें' : 'Add User', 
+        Icons.person_add_rounded, 
+        Colors.deepPurple, 
+        '/users/add'
+      ));
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -15,7 +15,7 @@ class AppTheme {
   // Status Colors
   static const draftColor = Color(0xFF95A5A6);
   static const submittedColor = Color(0xFF3498DB);
-  static const verifiedColor = Color(0xFF9B59B6);
+  static const forwardedColor = Color(0xFF9B59B6);
   static const approvedColor = Color(0xFF27AE60);
   static const rejectedColor = Color(0xFFE74C3C);
 
@@ -135,7 +135,7 @@ class AppTheme {
     switch (status.toLowerCase()) {
       case 'draft': return draftColor;
       case 'submitted': return submittedColor;
-      case 'verified': return verifiedColor;
+      case 'forwarded': return forwardedColor;
       case 'approved': return approvedColor;
       case 'rejected': return rejectedColor;
       default: return Colors.grey;

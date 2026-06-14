@@ -14,11 +14,13 @@ import '../../providers/language_provider.dart';
 class PdfPreviewScreen extends StatefulWidget {
   final String inspectionId;
   final String title;
+  final String format;
 
   const PdfPreviewScreen({
     super.key,
     required this.inspectionId,
     required this.title,
+    this.format = 'pdf_en',
   });
 
   @override
@@ -46,7 +48,7 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
     });
 
     try {
-      final downloadUrl = await ApiService().getReportDownloadUrl(widget.inspectionId);
+      final downloadUrl = await ApiService().getReportDownloadUrl(widget.inspectionId, format: widget.format);
       final dir = await getTemporaryDirectory();
       final savePath = '${dir.path}/Report_${widget.inspectionId}.pdf';
 

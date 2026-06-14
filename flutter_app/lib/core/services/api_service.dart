@@ -154,6 +154,13 @@ class ApiService {
         if (forwardTo != null) 'forward_to': forwardTo,
       });
 
+  Future<Response> forwardInspection(String id, String recipientDesignation, String recipientContact, String? remarks) =>
+      _dio.post('/inspections/$id/forward', data: {
+        'recipient_designation': recipientDesignation,
+        'recipient_contact': recipientContact,
+        if (remarks != null) 'remarks': remarks,
+      });
+
   // ── Photos ────────────────────────────────────────────────────────────────
 
   Future<Response> uploadPhoto({

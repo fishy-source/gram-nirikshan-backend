@@ -10,17 +10,16 @@ from enum import Enum
 # ─── Enums ─────────────────────────────────────────────────────────────────────
 
 class UserRole(str, Enum):
+    SUPERADMIN = "superadmin"
     ADMIN = "admin"
-    JE = "je"
-    AE = "ae"
-    XEN = "xen"
+    INSPECTOR = "inspector"
     VIEWER = "viewer"
 
 
 class InspectionStatus(str, Enum):
     DRAFT = "draft"
     SUBMITTED = "submitted"
-    VERIFIED = "verified"
+    FORWARDED = "forwarded"
     APPROVED = "approved"
     REJECTED = "rejected"
 
@@ -67,6 +66,7 @@ class UserResponse(BaseModel):
     name: str
     name_hindi: Optional[str] = None
     email: Optional[str] = None
+    aadhar_number: Optional[str] = None
     role: UserRole
     employee_id: Optional[str] = None
     designation: Optional[str] = None
@@ -99,7 +99,8 @@ class UserCreate(BaseModel):
     name: str
     name_hindi: Optional[str] = None
     email: Optional[EmailStr] = None
-    role: UserRole = UserRole.JE
+    aadhar_number: Optional[str] = None
+    role: UserRole = UserRole.INSPECTOR
     employee_id: Optional[str] = None
     designation: Optional[str] = None
     department: Optional[str] = None
@@ -111,6 +112,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     name_hindi: Optional[str] = None
     email: Optional[EmailStr] = None
+    aadhar_number: Optional[str] = None
     designation: Optional[str] = None
     department: Optional[str] = None
     district: Optional[str] = None
@@ -272,6 +274,12 @@ class ApprovalCreate(BaseModel):
     forward_to: Optional[str] = None  # user_id to forward to
 
 
+class ForwardCreate(BaseModel):
+    recipient_designation: str
+    recipient_contact: str
+    remarks: Optional[str] = None
+
+
 class ApprovalResponse(BaseModel):
     id: str
     inspection_id: str
@@ -292,7 +300,7 @@ class DashboardStats(BaseModel):
     total_inspections: int
     draft_count: int
     submitted_count: int
-    verified_count: int
+    forwarded_count: int
     approved_count: int
     rejected_count: int
     total_panchayats: int

@@ -50,7 +50,7 @@ class _MapScreenState extends State<MapScreen> {
           markerIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
         } else if (ins.status == 'rejected') {
           markerIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-        } else if (ins.status == 'submitted' || ins.status == 'verified') {
+        } else if (ins.status == 'submitted' || ins.status == 'forwarded') {
           markerIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
         } else {
           markerIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
@@ -230,7 +230,7 @@ class _MapScreenState extends State<MapScreen> {
       case 'rejected':
         return AppTheme.errorColor;
       case 'submitted':
-      case 'verified':
+      case 'forwarded':
         return AppTheme.warningColor;
       default:
         return AppTheme.primaryColor;

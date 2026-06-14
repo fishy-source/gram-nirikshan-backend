@@ -23,7 +23,7 @@ class _InspectionListScreenState extends State<InspectionListScreen> {
     (null, 'all', Icons.list_rounded),
     ('draft', 'draft', Icons.edit_rounded),
     ('submitted', 'submitted', Icons.send_rounded),
-    ('verified', 'verified', Icons.verified_rounded),
+    ('forwarded', 'forwarded', Icons.forward_rounded),
     ('approved', 'approved', Icons.check_circle_rounded),
     ('rejected', 'rejected', Icons.cancel_rounded),
   ];

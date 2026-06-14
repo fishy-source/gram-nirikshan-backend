@@ -52,17 +52,16 @@ class SqlEnum(TypeDecorator):
 # ─── Enums ─────────────────────────────────────────────────────────────────────
 
 class UserRole(str, enum.Enum):
+    SUPERADMIN = "superadmin"
     ADMIN = "admin"
-    JE = "je"        # Junior Engineer
-    AE = "ae"        # Assistant Engineer
-    XEN = "xen"      # Executive Engineer
+    INSPECTOR = "inspector"
     VIEWER = "viewer"
 
 
 class InspectionStatus(str, enum.Enum):
     DRAFT = "draft"
     SUBMITTED = "submitted"
-    VERIFIED = "verified"
+    FORWARDED = "forwarded"
     APPROVED = "approved"
     REJECTED = "rejected"
 
@@ -100,7 +99,8 @@ class User(Base):
     name = Column(String(100), nullable=False)
     name_hindi = Column(String(200), nullable=True)
     email = Column(String(100), unique=True, nullable=True)
-    role = Column(SqlEnum(UserRole), nullable=False, default=UserRole.JE)
+    aadhar_number = Column(String(12), unique=True, nullable=True)
+    role = Column(SqlEnum(UserRole), nullable=False, default=UserRole.INSPECTOR)
     employee_id = Column(String(50), unique=True, nullable=True)
     designation = Column(String(100), nullable=True)
     department = Column(String(100), nullable=True)
@@ -316,3 +316,21 @@ class Notification(Base):
 
     # Relationships
     user = relationship("User", back_populates="notifications")
+
+
+# ─── Forwarding History Model ──────────────────────────────────────────────────
+
+class ForwardingHistory(Base):
+    __tablename__ = "forwarding_history"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    inspection_id = Column(String(36), ForeignKey("inspections.id", ondelete="CASCADE"), nullable=False)
+    forwarded_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    recipient_designation = Column(String(100), nullable=False)
+    recipient_contact = Column(String(100), nullable=False)
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    inspection = relationship("Inspection", backref="forwarding_history")
+    forwarder = relationship("User", foreign_keys=[forwarded_by])

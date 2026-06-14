@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(100) NOT NULL,
     name_hindi VARCHAR(200),
     email VARCHAR(100) UNIQUE,
-    role ENUM('admin','je','ae','xen','viewer') NOT NULL DEFAULT 'je',
+    role ENUM('superadmin','admin','je','ae','xen','viewer') NOT NULL DEFAULT 'je',
     employee_id VARCHAR(50) UNIQUE,
     designation VARCHAR(100),
     department VARCHAR(100),
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS inspections (
     inspection_id VARCHAR(30) NOT NULL UNIQUE,  -- Auto-generated: GN-YYYYMM-XXXXX
     panchayat_id VARCHAR(36) NOT NULL,
     engineer_id VARCHAR(36) NOT NULL,
-    status ENUM('draft','submitted','verified','approved','rejected') NOT NULL DEFAULT 'draft',
+    status ENUM('draft','submitted','forwarded','approved','rejected') NOT NULL DEFAULT 'draft',
     title VARCHAR(300) NOT NULL,
     description TEXT,
     inspection_type VARCHAR(100),
@@ -193,6 +193,22 @@ CREATE TABLE IF NOT EXISTS approvals (
     INDEX idx_inspection (inspection_id),
     INDEX idx_approver (approver_id),
     INDEX idx_action (action)
+) ENGINE=InnoDB;
+
+-- ─────────────────────────────────────────────────────────────────
+-- FORWARDING HISTORY TABLE
+-- ─────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS forwarding_history (
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    inspection_id VARCHAR(36) NOT NULL,
+    forwarded_by VARCHAR(36) NOT NULL,
+    recipient_designation VARCHAR(100) NOT NULL,
+    recipient_contact VARCHAR(100) NOT NULL,
+    remarks TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (inspection_id) REFERENCES inspections(id) ON DELETE CASCADE,
+    FOREIGN KEY (forwarded_by) REFERENCES users(id),
+    INDEX idx_inspection (inspection_id)
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────────────────────────

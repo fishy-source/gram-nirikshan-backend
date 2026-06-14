@@ -22,7 +22,7 @@ async def get_dashboard_stats(
     current_user: User = Depends(get_current_user),
 ):
     """Get dashboard statistics. Engineers see their own, admins see all."""
-    is_engineer = current_user.role == UserRole.JE
+    is_engineer = current_user.role == UserRole.INSPECTOR
 
     # Build base filter
     def insp_filter(status=None):
@@ -62,14 +62,14 @@ async def get_dashboard_stats(
     total_panchayats = total_panchayats_q.scalar() or 0
 
     # Total engineers
-    total_engineers_q = await db.execute(select(func.count(User.id)).where(User.role == UserRole.JE))
+    total_engineers_q = await db.execute(select(func.count(User.id)).where(User.role == UserRole.INSPECTOR))
     total_engineers = total_engineers_q.scalar() or 0
 
     return DashboardStats(
         total_inspections=await count_insp(),
         draft_count=await count_insp(InspectionStatus.DRAFT),
         submitted_count=await count_insp(InspectionStatus.SUBMITTED),
-        verified_count=await count_insp(InspectionStatus.VERIFIED),
+        forwarded_count=await count_insp(InspectionStatus.FORWARDED),
         approved_count=await count_insp(InspectionStatus.APPROVED),
         rejected_count=await count_insp(InspectionStatus.REJECTED),
         total_panchayats=total_panchayats,
@@ -85,10 +85,10 @@ async def get_engineer_performance(
     current_user: User = Depends(get_current_user),
 ):
     """Get engineer performance metrics (admin/AE/XEN only)."""
-    if current_user.role not in [UserRole.ADMIN, UserRole.AE, UserRole.XEN]:
+    if current_user.role not in [UserRole.ADMIN, ]:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    engineers_q = await db.execute(select(User).where(User.role == UserRole.JE, User.is_active == True))
+    engineers_q = await db.execute(select(User).where(User.role == UserRole.INSPECTOR, User.is_active == True))
     engineers = engineers_q.scalars().all()
 
     results = []
@@ -125,9 +125,12 @@ async def get_me(current_user: User = Depends(get_current_user)):
 @user_router.get("/", response_model=List[UserResponse])
 async def list_users(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.AE, UserRole.XEN)),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.SUPERADMIN, )),
 ):
-    result = await db.execute(select(User).order_by(User.name))
+    query = select(User).order_by(User.name)
+    if current_user.role == UserRole.ADMIN and current_user.district:
+        query = query.where(User.district == current_user.district)
+    result = await db.execute(query)
     return [UserResponse.model_validate(u) for u in result.scalars().all()]
 
 
@@ -135,9 +138,19 @@ async def list_users(
 async def create_user(
     data: UserCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN)),
 ):
-    """Admin: create a new user."""
+    """Admin/SuperAdmin: create a new user."""
+    # RBAC logic
+    if current_user.role == UserRole.ADMIN:
+        if data.role not in [UserRole.INSPECTOR, UserRole.VIEWER]:
+            raise HTTPException(status_code=403, detail="Admins can only create Inspectors (JE) or Viewers.")
+        if current_user.district:
+            if not data.district:
+                data.district = current_user.district
+            elif data.district != current_user.district:
+                raise HTTPException(status_code=403, detail="Admins can only create users within their district.")
+
     existing = await db.execute(select(User).where(User.mobile == data.mobile))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Mobile number already registered")
@@ -156,14 +169,21 @@ async def update_user(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update user (admin can update any, user can update self)."""
-    if current_user.id != user_id and current_user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Access denied")
-
+    """Update user (admin can update lower roles, user can update self)."""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    if current_user.id != user_id:
+        if current_user.role not in [UserRole.ADMIN, UserRole.SUPERADMIN]:
+            raise HTTPException(status_code=403, detail="Access denied")
+            
+        if current_user.role == UserRole.ADMIN:
+            if user.role not in [UserRole.INSPECTOR, UserRole.VIEWER]:
+                raise HTTPException(status_code=403, detail="Admins can only update lower roles (JE, Viewer).")
+            if current_user.district and user.district != current_user.district:
+                raise HTTPException(status_code=403, detail="Cannot update user outside your jurisdiction.")
 
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(user, field, value)
@@ -176,14 +196,22 @@ async def update_user(
 async def delete_user(
     user_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN)),
 ):
-    """Admin: deactivate (soft delete) a user."""
+    """Admin/SuperAdmin: deactivate (soft delete) a user."""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    if current_user.role == UserRole.ADMIN:
+        if user.role not in [UserRole.INSPECTOR, UserRole.VIEWER]:
+            raise HTTPException(status_code=403, detail="Admins can only deactivate Inspectors (JE).")
+        if current_user.district and user.district != current_user.district:
+            raise HTTPException(status_code=403, detail="Cannot deactivate user outside your jurisdiction.")
+
     user.is_active = False
+    await db.commit()
     return MessageResponse(message="User deactivated", success=True)
 
 

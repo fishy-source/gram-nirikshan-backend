@@ -12,7 +12,9 @@ nixPkgs = [
   "tcl",
   "tk",
   "libpng",
-  "libxml2"
+  "libxml2",
+  "pango",
+  "cairo"
 ]
 
 [phases.install]

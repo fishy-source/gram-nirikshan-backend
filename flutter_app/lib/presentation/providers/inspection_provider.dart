@@ -177,6 +177,19 @@ class InspectionProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> forwardInspection(String id, String recipientDesignation, String recipientContact, String? remarks) async {
+    try {
+      await _api.forwardInspection(id, recipientDesignation, recipientContact, remarks);
+      await loadInspectionDetail(id);
+      loadInspections(refresh: true);
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> loadPanchayats() async {
     try {
       final response = await _api.getPanchayats();

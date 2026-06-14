@@ -16,7 +16,7 @@ from app.models.models import (
 )
 from app.schemas.schemas import (
     InspectionCreate, InspectionUpdate, InspectionResponse,
-    GPSCheckIn, GPSCheckOut, ApprovalCreate, ApprovalResponse, MessageResponse
+    GPSCheckIn, GPSCheckOut, ApprovalCreate, ApprovalResponse, MessageResponse, ForwardCreate
 )
 from app.core.dependencies import get_current_user, require_engineer, require_approver
 from app.core.config import settings
@@ -374,7 +374,7 @@ async def approve_inspection(
     if not inspection:
         raise HTTPException(status_code=404, detail="Inspection not found")
 
-    if inspection.status not in [DBStatus.SUBMITTED, DBStatus.VERIFIED]:
+    if inspection.status not in [DBStatus.SUBMITTED, DBStatus.FORWARDED]:
         raise HTTPException(status_code=400, detail="Inspection cannot be approved in current status")
 
     level_map = {"ae": "AE", "xen": "XEN", "admin": "ADMIN"}
@@ -399,12 +399,48 @@ async def approve_inspection(
         inspection.status = DBStatus.REJECTED
         msg = "Inspection rejected"
     elif data.action == ApprovalAction.FORWARDED:
-        inspection.status = DBStatus.VERIFIED
+        inspection.status = DBStatus.FORWARDED
         msg = "Inspection forwarded to next level"
     else:
         msg = "Action recorded"
 
+    await db.commit()
     return MessageResponse(message=msg, success=True)
+
+
+@router.post("/{inspection_id}/forward", response_model=MessageResponse)
+async def forward_inspection(
+    inspection_id: str,
+    data: ForwardCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Forward an inspection to another official."""
+    from app.models.models import ForwardingHistory
+    
+    if current_user.role.value not in ["admin", "superadmin", "ae", "xen"]:
+        raise HTTPException(status_code=403, detail="Not authorized to forward")
+
+    result = await db.execute(select(Inspection).where(Inspection.id == inspection_id))
+    inspection = result.scalar_one_or_none()
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+
+    forward_log = ForwardingHistory(
+        inspection_id=inspection.id,
+        forwarded_by=current_user.id,
+        recipient_designation=data.recipient_designation,
+        recipient_contact=data.recipient_contact,
+        remarks=data.remarks,
+    )
+    db.add(forward_log)
+    
+    # Optionally update status to something that represents it's forwarded
+    inspection.status = DBStatus.FORWARDED
+
+    await db.commit()
+    return MessageResponse(message=f"Report successfully forwarded to {data.recipient_designation}", success=True)
+
 
 
 @router.get("/{inspection_id}/approvals", response_model=List[ApprovalResponse])
