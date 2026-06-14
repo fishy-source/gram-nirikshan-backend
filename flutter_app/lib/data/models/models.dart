@@ -59,7 +59,7 @@ class UserModel {
       };
 
   bool get isAdmin => role == 'admin' || role == 'superadmin';
-  bool get isInspector => role == 'inspector';
+  bool get isInspector => role == 'inspector' || role == 'admin' || role == 'superadmin';
   bool get canApprove => role == 'admin' || role == 'superadmin';
 }
 

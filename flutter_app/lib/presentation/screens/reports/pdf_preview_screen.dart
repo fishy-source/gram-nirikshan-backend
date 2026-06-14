@@ -82,8 +82,19 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
         _loading = false;
       });
     } catch (e) {
+      String errorMessage = e.toString();
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data.containsKey('detail')) {
+          errorMessage = data['detail'].toString();
+        } else if (data is Map && data.containsKey('message')) {
+          errorMessage = data['message'].toString();
+        } else if (data is String) {
+          errorMessage = data;
+        }
+      }
       setState(() {
-        _error = e.toString();
+        _error = errorMessage;
         _loading = false;
       });
     }

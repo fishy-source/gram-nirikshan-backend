@@ -95,7 +95,7 @@ flutter:
 
   assets:
     - assets/images/
-    - assets/fonts/
+    - assets/fonts/NotoSansDevanagari-Regular.ttf
 
   fonts:
     - family: Poppins

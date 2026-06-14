@@ -32,13 +32,18 @@ class SqlEnum(TypeDecorator):
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
-        if isinstance(value, self.enum_class):
-            return value.name.upper()
+        if isinstance(value, enum.Enum):
+            return str(value.value).upper()
         return str(value).upper()
 
     def process_result_value(self, value, dialect):
         if value is None:
             return None
+        # Clean up accidentally polluted values like 'USERROLE.JE'
+        if '.' in value:
+            value = value.split('.')[-1]
+            if value == 'JE':
+                value = 'INSPECTOR'
         try:
             return self.enum_class[value.upper()]
         except KeyError:
@@ -210,8 +215,8 @@ class Inspection(Base):
     engineer = relationship("User", back_populates="inspections", foreign_keys=[engineer_id])
     photos = relationship("Photo", back_populates="inspection", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="inspection", cascade="all, delete-orphan")
-    reports = relationship("Report", back_populates="inspection")
-    approvals = relationship("Approval", back_populates="inspection", order_by="Approval.created_at")
+    reports = relationship("Report", back_populates="inspection", cascade="all, delete-orphan")
+    approvals = relationship("Approval", back_populates="inspection", order_by="Approval.created_at", cascade="all, delete-orphan")
 
 
 # ─── Photo Model ───────────────────────────────────────────────────────────────

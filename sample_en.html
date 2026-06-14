@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inspection Report</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm;
+            @bottom-center {
+                content: "Page " counter(page) " of " counter(pages);
+                font-size: 10pt;
+                color: #555;
+            }
+        }
+        body {
+            font-family: 'Helvetica', sans-serif;
+            color: #333;
+            line-height: 1.5;
+            font-size: 11pt;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #2e7d32;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #2e7d32;
+            margin: 0;
+            font-size: 24pt;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section h2 {
+            color: #fff;
+            background-color: #2e7d32;
+            padding: 5px 10px;
+            font-size: 14pt;
+            border-radius: 3px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            width: 25%;
+        }
+        .photo-grid {
+            display: block;
+            width: 100%;
+        }
+        .photo-item {
+            display: inline-block;
+            width: 45%;
+            margin: 2%;
+            text-align: center;
+        }
+        .photo-item img {
+            max-width: 100%;
+            border: 1px solid #ccc;
+            padding: 2px;
+        }
+        .photo-caption {
+            font-size: 9pt;
+            color: #555;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>INSPECTION REPORT</h1>
+    </div>
+
+    <div class="section">
+        <h2>Basic Information</h2>
+        <table>
+            <tr>
+                <th>Inspection ID</th>
+                <td>INSP-2023-001</td>
+                <th>Status</th>
+                <td style="text-transform: capitalize;">approved</td>
+            </tr>
+            <tr>
+                <th>Inspector</th>
+                <td>Rakesh Kumar</td>
+                <th>District</th>
+                <td></td>
+            </tr>
+            <tr>
+                <th>Gram Panchayat</th>
+                <td>Rampur</td>
+                <th>Village</th>
+                <td></td>
+            </tr>
+            <tr>
+                <th>Block</th>
+                <td></td>
+                <th>Date</th>
+                <td>2023-10-25</td>
+            </tr>
+            <tr>
+                <th>Project Name</th>
+                <td>Water Tank Construction</td>
+                <th>Work Code</th>
+                <td>WT-001</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Location & GPS Tracking</h2>
+        <table>
+            <tr>
+                <th>Check-in Time</th>
+                <td>N/A</td>
+                <th>Check-in GPS</th>
+                <td>, </td>
+            </tr>
+            <tr>
+                <th>Check-out Time</th>
+                <td>N/A</td>
+                <th>Check-out GPS</th>
+                <td>, </td>
+            </tr>
+        </table>
+    </div>
+
+    
+
+    <div class="section">
+        <h2>Detailed Inspection Report</h2>
+        <div style="white-space: pre-wrap;">1. **Work Description & Key Findings**: The water tank construction at Rampur is 50% complete. Quality of bricks and cement is satisfactory.
+2. **Deficiencies**: Some curing work was delayed by 2 days due to water shortage.
+3. **Recommendations**: Arrange a dedicated water tanker for uninterrupted curing.
+4. **Conclusion**: Overall progress is good.</div>
+    </div>
+
+    
+
+    
+
+</body>
+</html>

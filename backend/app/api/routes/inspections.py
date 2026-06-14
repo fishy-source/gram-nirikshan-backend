@@ -81,7 +81,7 @@ async def list_inspections(
         query = query.where(Inspection.status == status)
     if panchayat_id:
         query = query.where(Inspection.panchayat_id == panchayat_id)
-    if engineer_id and current_user.role.value in ["admin", "ae", "xen"]:
+    if engineer_id and current_user.role.value in ["admin", "superadmin", "ae", "xen"]:
         query = query.where(Inspection.engineer_id == engineer_id)
 
     query = query.order_by(Inspection.created_at.desc())
@@ -201,7 +201,7 @@ async def update_inspection(
     if not inspection:
         raise HTTPException(status_code=404, detail="Inspection not found")
 
-    if inspection.engineer_id != current_user.id and current_user.role.value != "admin":
+    if inspection.engineer_id != current_user.id and current_user.role.value not in ["admin", "superadmin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
 
     if inspection.status not in [DBStatus.DRAFT, DBStatus.REJECTED]:
@@ -377,7 +377,7 @@ async def approve_inspection(
     if inspection.status not in [DBStatus.SUBMITTED, DBStatus.FORWARDED]:
         raise HTTPException(status_code=400, detail="Inspection cannot be approved in current status")
 
-    level_map = {"ae": "AE", "xen": "XEN", "admin": "ADMIN"}
+    level_map = {"ae": "AE", "xen": "XEN", "admin": "ADMIN", "superadmin": "SUPERADMIN"}
     level = level_map.get(current_user.role.value, "AE")
 
     approval = Approval(
@@ -467,10 +467,10 @@ async def delete_inspection(
     current_user: User = Depends(get_current_user),
 ):
     """Delete an inspection. Restricted to Admin."""
-    if current_user.role.value != "admin":
+    if current_user.role.value not in ["admin", "superadmin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Admin can delete inspections."
+            detail="Only Admin or Superadmin can delete inspections."
         )
 
     result = await db.execute(select(Inspection).where(Inspection.id == inspection_id))

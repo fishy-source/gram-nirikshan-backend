@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
 import '../../providers/language_provider.dart';
+import 'package:dio/dio.dart';
 import '../../providers/auth_provider.dart';
 
 class AddUserScreen extends StatefulWidget {
@@ -38,11 +39,17 @@ class _AddUserScreenState extends State<AddUserScreen> {
     setState(() => _isLoading = true);
     
     try {
+      final authProvider = context.read<AuthProvider>();
+      final currentUser = authProvider.currentUser;
+      
+      String apiRole = _role;
+
       await ApiService().createUser({
         'name': _name,
         'mobile': _mobile,
         'aadhar_number': _aadhar,
-        'role': _role,
+        'role': apiRole,
+        if (currentUser?.district != null) 'district': currentUser!.district,
       });
       
       if (mounted) {
@@ -56,10 +63,20 @@ class _AddUserScreenState extends State<AddUserScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = e.toString();
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data.containsKey('detail')) {
+            errorMessage = data['detail'].toString();
+          } else if (data is Map && data.containsKey('message')) {
+            errorMessage = data['message'].toString();
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(errorMessage),
             backgroundColor: AppTheme.errorColor,
+            duration: const Duration(seconds: 4),
           ),
         );
       }

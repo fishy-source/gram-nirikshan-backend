@@ -13,6 +13,7 @@ import '../../../core/services/api_service.dart';
 import '../../providers/inspection_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../../data/models/models.dart';
+import '../../../core/services/pdf_service.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -55,10 +56,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
     } catch (e) {
       if (mounted) {
         final isHindi = context.read<LanguageProvider>().isHindi;
+        String errorMessage = e.toString();
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data.containsKey('detail')) {
+            errorMessage = data['detail'].toString();
+          } else if (data is Map && data.containsKey('message')) {
+            errorMessage = data['message'].toString();
+          } else if (data is String) {
+            errorMessage = data;
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isHindi ? 'रिपोर्ट बनाने में विफल: $e' : 'Failed to generate report: $e'),
+            content: Text(isHindi ? 'रिपोर्ट बनाने में विफल: $errorMessage' : 'Failed to generate report: $errorMessage'),
             backgroundColor: AppTheme.errorColor,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -70,97 +83,49 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<void> _downloadAndViewReport(String inspectionId, String title, String format) async {
     setState(() {
       _downloadingMap[inspectionId] = true;
-      _downloadProgressMap[inspectionId] = 0.0;
     });
 
     try {
-      final downloadUrl = await ApiService().getReportDownloadUrl(inspectionId, format: format);
-      final dir = await getApplicationDocumentsDirectory();
-      final savePath = '${dir.path}/Report_${format}_$inspectionId.pdf';
+      // Find the inspection
+      final inspection = context.read<InspectionProvider>().inspections.firstWhere(
+        (i) => i.id == inspectionId,
+        orElse: () => throw Exception('Inspection not found'),
+      );
 
-      // Download file using Dio
-      final dio = Dio();
-      
-      final flutterSecureStorage = FlutterSecureStorage();
-      final tokenValue = await flutterSecureStorage.read(key: AppConstants.accessTokenKey);
-
-      try {
-        await dio.download(
-          downloadUrl,
-          savePath,
-          options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
-          onReceiveProgress: (received, total) {
-            if (total != -1) {
-              setState(() {
-                _downloadProgressMap[inspectionId] = received / total;
-              });
-            }
-          },
-        );
-      } on DioException catch (de) {
-        if (de.response?.statusCode == 404) {
-          // Report not found, auto-generate first!
-          setState(() {
-            _generatingMap[inspectionId] = true;
-          });
-          await ApiService().generateReport(inspectionId);
-          setState(() {
-            _generatingMap[inspectionId] = false;
-          });
-          
-          // Retry downloading after successful generation
-          await dio.download(
-            downloadUrl,
-            savePath,
-            options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
-            onReceiveProgress: (received, total) {
-              if (total != -1) {
-                setState(() {
-                  _downloadProgressMap[inspectionId] = received / total;
-                });
-              }
-            },
-          );
-        } else {
-          rethrow;
-        }
+      // Fetch photos
+      final photosResponse = await ApiService().getPhotos(inspectionId);
+      final List<PhotoModel> photos = [];
+      if (photosResponse.statusCode == 200) {
+        final List<dynamic> data = photosResponse.data;
+        photos.addAll(data.map((p) => PhotoModel.fromJson(p)).toList());
       }
 
-      setState(() => _downloadingMap[inspectionId] = false);
+      // Determine language
+      final isHindi = format == 'pdf_hi';
 
-      // Open the downloaded PDF
-      final result = await OpenFile.open(savePath);
-      if (result.type != ResultType.done && mounted) {
-        // Fallback: launch in browser
-        final url = Uri.parse(downloadUrl);
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
-        } else {
-          final isHindi = context.read<LanguageProvider>().isHindi;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(isHindi ? 'फ़ाइल खोलने में असमर्थ: ${result.message}' : 'Unable to open file: ${result.message}'),
-              backgroundColor: AppTheme.errorColor,
-            ),
-          );
-        }
-      }
+      // Generate and layout PDF using PdfService
+      await PdfService.generateInspectionReport(inspection, photos, isHindi: isHindi);
+
     } catch (e) {
-      setState(() {
-        _downloadingMap[inspectionId] = false;
-        _generatingMap[inspectionId] = false;
-      });
       if (mounted) {
         final isHindi = context.read<LanguageProvider>().isHindi;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isHindi ? 'रिपोर्ट खोलने या बनाने में विफल: $e' : 'Failed to open or generate report: $e'),
+            content: Text(isHindi ? 'PDF बनाने में असमर्थ: $e' : 'Unable to generate PDF: $e'),
             backgroundColor: AppTheme.errorColor,
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _downloadingMap[inspectionId] = false;
+        });
+      }
     }
   }
+
+
 
   Future<void> _shareReportFile(String inspectionId, String title, String format) async {
     ScaffoldMessenger.of(context).showSnackBar(

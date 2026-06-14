@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from contextlib import asynccontextmanager
 import logging
 from pathlib import Path
@@ -92,7 +92,7 @@ async def lifespan(app: FastAPI):
                         name="Rakesh Kumar",
                         name_hindi="राकेश कुमार",
                         email="rakeshkumarred1000@gmail.com",
-                        role=UserRole.ADMIN,
+                        role=UserRole.SUPERADMIN,
                         employee_id="ADMIN8433",
                         designation="Super Admin",
                         department="Gram Panchayat Department",
@@ -105,6 +105,7 @@ async def lifespan(app: FastAPI):
                     await session.commit()
                     logger.info("Default Admin User Rakesh Kumar (8433484673) registered successfully.")
                 else:
+                    user_rakesh.role = UserRole.SUPERADMIN
                     user_rakesh.email = "rakeshkumarred1000@gmail.com"
                     user_rakesh.block = "Sikandrarao"
                     user_rakesh.profile_photo = "/uploads/profile_photos/rakesh_admin.png"
@@ -276,7 +277,7 @@ async def debug_endpoint(seed: bool = False):
                         name="Rakesh Kumar",
                         name_hindi="राकेश कुमार",
                         email="rakesh@example.com",
-                        role=UserRole.ADMIN,
+                        role=UserRole.SUPERADMIN,
                         employee_id="ADMIN8433",
                         designation="Super Admin",
                         department="Gram Panchayat Department",
@@ -288,7 +289,9 @@ async def debug_endpoint(seed: bool = False):
                     await session.commit()
                     seed_logs.append("Seeded Rakesh Kumar successfully")
                 else:
-                    seed_logs.append("Rakesh Kumar already exists")
+                    user_rakesh.role = UserRole.SUPERADMIN
+                    await session.commit()
+                    seed_logs.append("Rakesh Kumar already exists (role updated to SUPERADMIN)")
 
                 # 2. Seed System Administrator
                 res_u2 = await session.execute(select(User).where(User.mobile == "9999999999"))
@@ -369,13 +372,35 @@ async def debug_endpoint(seed: bool = False):
 
 
 
-@app.get("/", tags=["Root"])
+@app.get("/", tags=["Root"], response_class=HTMLResponse)
 async def root():
-    return {
-        "message": "Welcome to Gram Nirikshan API",
-        "docs": "/docs",
-        "version": settings.APP_VERSION
-    }
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="hi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Gram Nirikshan App (ग्राम निरीक्षण)</title>
+        <meta property="og:title" content="Gram Nirikshan App (ग्राम निरीक्षण)" />
+        <meta property="og:description" content="उत्तर प्रदेश ग्रामीण विकास विभाग के लिए ग्राम पंचायत निरीक्षण ऐप।" />
+        <meta property="og:image" content="https://raw.githubusercontent.com/google/material-design-icons/master/png/action/verified_user/materialicons/48dp/2x/baseline_verified_user_black_48dp.png" />
+        <meta property="og:url" content="https://web-production-ccc50.up.railway.app/" />
+        <meta property="og:type" content="website" />
+        <style>
+            body {{ font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f7f6; }}
+            h1 {{ color: #2C3E50; }}
+            p {{ color: #555; font-size: 18px; }}
+            .btn {{ display: inline-block; padding: 10px 20px; background-color: #2E7D32; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <h1>Gram Nirikshan API</h1>
+        <p>Welcome to Gram Nirikshan API (version {settings.APP_VERSION})</p>
+        <a href="/docs" class="btn">View API Documentation</a>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
 
 
 if __name__ == "__main__":
