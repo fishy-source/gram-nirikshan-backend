@@ -213,7 +213,7 @@ class LanguageProvider with ChangeNotifier {
     'block': 'ब्लॉक',
     'logout': 'लॉगआउट',
     'share_app': 'ऐप शेयर करें',
-    'share_app_text': 'ग्राम निरीक्षण ऐप (Gram Panchayat Inspection App) डाउनलोड करने के लिए इस लिंक पर जाएं: https://web-production-ccc50.up.railway.app/',
+    'share_app_text': 'ग्राम निरीक्षण ऐप (Gram Panchayat Inspection App) डाउनलोड करने के लिए इस लिंक पर जाएं:\nhttps://web-production-ccc50.up.railway.app/',
 
     // Reports Screen
     'view_inspection_reports': 'निरीक्षण रिपोर्ट देखें',
@@ -431,7 +431,7 @@ class LanguageProvider with ChangeNotifier {
     'block': 'Block',
     'logout': 'Logout',
     'share_app': 'Share App',
-    'share_app_text': 'Go to this link to download Gram Nirikshan App (Gram Panchayat Inspection App): https://web-production-ccc50.up.railway.app/',
+    'share_app_text': 'Go to this link to download Gram Nirikshan App (Gram Panchayat Inspection App):\nhttps://web-production-ccc50.up.railway.app/',
 
     // Reports Screen
     'view_inspection_reports': 'View Inspection Reports',

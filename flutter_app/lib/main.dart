@@ -13,6 +13,7 @@ import 'core/constants/app_constants.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/inspection_provider.dart';
 import 'presentation/screens/auth/login_screen.dart';
+import 'presentation/screens/welcome/welcome_screen.dart';
 import 'presentation/screens/dashboard/dashboard_screen.dart';
 import 'presentation/screens/inspections/inspection_list_screen.dart';
 import 'presentation/screens/inspections/inspection_detail_screen.dart';
@@ -85,6 +86,7 @@ class _GramNirikshanAppState extends State<GramNirikshanApp> {
       routes: {
         '/splash': (_) => const SplashScreen(),
         '/login': (_) => const LoginScreen(),
+        '/welcome': (context) => const WelcomeScreen(),
         '/home': (_) => const HomeScreen(),
         '/inspections': (_) => const InspectionListScreen(),
         '/inspections/new': (_) => const NewInspectionScreen(),
@@ -146,7 +148,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final auth = context.read<AuthProvider>();
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
-    Navigator.pushReplacementNamed(context, auth.isLoggedIn ? '/home' : '/login');
+    Navigator.pushReplacementNamed(context, auth.isLoggedIn ? '/welcome' : '/login');
   }
 
   @override
@@ -217,7 +219,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final _pages = [
     const DashboardScreen(),
     const InspectionListScreen(),
-    const AIAssistantScreen(),
     const _ProfileScreen(),
   ];
 
@@ -225,6 +226,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _pages),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AIAssistantScreen()),
+          );
+        },
+        backgroundColor: AppTheme.primaryColor,
+        icon: const Icon(Icons.smart_toy_rounded, color: Colors.white),
+        label: Text(context.tr('ai_assistant'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
@@ -233,7 +245,6 @@ class _HomeScreenState extends State<HomeScreen> {
         destinations: [
           NavigationDestination(icon: const Icon(Icons.dashboard_outlined), selectedIcon: const Icon(Icons.dashboard_rounded), label: context.tr('dashboard')),
           NavigationDestination(icon: const Icon(Icons.assignment_outlined), selectedIcon: const Icon(Icons.assignment_rounded), label: context.tr('inspections')),
-          NavigationDestination(icon: const Icon(Icons.smart_toy_outlined), selectedIcon: const Icon(Icons.smart_toy_rounded), label: context.tr('ai_assistant')),
           NavigationDestination(icon: const Icon(Icons.person_outline_rounded), selectedIcon: const Icon(Icons.person_rounded), label: context.tr('profile')),
         ],
       ),
