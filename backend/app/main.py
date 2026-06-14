@@ -214,6 +214,10 @@ uploads_path = Path(settings.UPLOAD_DIR)
 uploads_path.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(uploads_path)), name="uploads")
 
+static_path = Path("app/static")
+static_path.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
 # ─── Routes ────────────────────────────────────────────────────────────────────
 
 prefix = settings.API_PREFIX
@@ -383,20 +387,23 @@ async def root():
         <title>Gram Nirikshan App (ग्राम निरीक्षण)</title>
         <meta property="og:title" content="Gram Nirikshan App (ग्राम निरीक्षण)" />
         <meta property="og:description" content="उत्तर प्रदेश ग्रामीण विकास विभाग के लिए ग्राम पंचायत निरीक्षण ऐप।" />
-        <meta property="og:image" content="https://raw.githubusercontent.com/google/material-design-icons/master/png/action/verified_user/materialicons/48dp/2x/baseline_verified_user_black_48dp.png" />
+        <meta property="og:image" content="https://web-production-ccc50.up.railway.app/static/icon.png" />
         <meta property="og:url" content="https://web-production-ccc50.up.railway.app/" />
         <meta property="og:type" content="website" />
         <style>
             body {{ font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f7f6; }}
             h1 {{ color: #2C3E50; }}
             p {{ color: #555; font-size: 18px; }}
-            .btn {{ display: inline-block; padding: 10px 20px; background-color: #2E7D32; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }}
+            .btn {{ display: inline-block; padding: 12px 24px; background-color: #f57c00; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+            .btn-secondary {{ display: inline-block; padding: 10px 20px; background-color: #2E7D32; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }}
         </style>
     </head>
     <body>
-        <h1>Gram Nirikshan API</h1>
-        <p>Welcome to Gram Nirikshan API (version {settings.APP_VERSION})</p>
-        <a href="/docs" class="btn">View API Documentation</a>
+        <img src="/static/icon.png" alt="Gram Nirikshan Logo" style="width: 120px; height: 120px; margin-bottom: 20px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+        <h1>Gram Nirikshan App</h1>
+        <p>उत्तर प्रदेश ग्रामीण विकास विभाग के लिए ग्राम पंचायत निरीक्षण ऐप।</p>
+        <a href="/static/GramNirikshan.apk" class="btn" download>📥 Download App (APK)</a><br>
+        <a href="/docs" class="btn-secondary">View API Documentation</a>
     </body>
     </html>
     """
