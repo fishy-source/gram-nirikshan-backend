@@ -2,6 +2,7 @@
 Gemini AI Assistant routes: chat, inspection guidance, report suggestions.
 Supports Hindi and English language responses.
 """
+# -*- coding: utf-8 -*-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -162,6 +163,7 @@ async def suggest_report(
                     for v in [inspection.title, inspection.project_name, inspection.observations, inspection.recommendations, inspection.description])
 
     if has_hindi:
+        default_obs = 'निरीक्षण किया गया।'
         prompt = f"""Draft a highly formal and professional Gram Panchayat inspection report (Inspection Memo) in Hindi according to the standards of the Rural Development Department (Gram Panchayat Department).
 
 Inspection Details:
@@ -173,7 +175,7 @@ Inspection Details:
 - Inspector/Engineer: {inspection.investigator_name or current_user.name_hindi or current_user.name} (Designation: {current_user.designation or 'Junior Engineer'})
 
 Observations / Notes:
-{inspection.observations or 'निरीक्षण किया गया।'}
+{inspection.observations or default_obs}
 {inspection.description or ''}
 
 Draft the full Hindi report under the following sections:
