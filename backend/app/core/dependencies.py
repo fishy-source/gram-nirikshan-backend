@@ -57,8 +57,8 @@ def require_admin():
 
 
 def require_engineer():
-    return require_roles(UserRole.ADMIN, UserRole.JE, UserRole.AE, UserRole.XEN)
+    return require_roles(UserRole.ADMIN, UserRole.INSPECTOR)
 
 
 def require_approver():
-    return require_roles(UserRole.ADMIN, UserRole.AE, UserRole.XEN)
+    return require_roles(UserRole.ADMIN)
