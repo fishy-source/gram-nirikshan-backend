@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from contextlib import asynccontextmanager
 import logging
 from pathlib import Path
@@ -92,7 +92,7 @@ async def lifespan(app: FastAPI):
                         name="Rakesh Kumar",
                         name_hindi="राकेश कुमार",
                         email="rakeshkumarred1000@gmail.com",
-                        role=UserRole.ADMIN,
+                        role=UserRole.SUPERADMIN,
                         employee_id="ADMIN8433",
                         designation="Super Admin",
                         department="Gram Panchayat Department",
@@ -105,6 +105,7 @@ async def lifespan(app: FastAPI):
                     await session.commit()
                     logger.info("Default Admin User Rakesh Kumar (8433484673) registered successfully.")
                 else:
+                    user_rakesh.role = UserRole.SUPERADMIN
                     user_rakesh.email = "rakeshkumarred1000@gmail.com"
                     user_rakesh.block = "Sikandrarao"
                     user_rakesh.profile_photo = "/uploads/profile_photos/rakesh_admin.png"
@@ -213,6 +214,10 @@ uploads_path = Path(settings.UPLOAD_DIR)
 uploads_path.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(uploads_path)), name="uploads")
 
+static_path = Path("app/static")
+static_path.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
 # ─── Routes ────────────────────────────────────────────────────────────────────
 
 prefix = settings.API_PREFIX
@@ -262,26 +267,6 @@ async def debug_endpoint(seed: bool = False):
             res = await session.execute(text("SELECT 1"))
             info["db_connection"] = "Success"
             info["db_test_query"] = res.scalar()
-
-            # Fix uppercase roles in DB
-            try:
-                await session.execute(text("UPDATE users SET role = 'admin' WHERE role = 'ADMIN'"))
-                await session.execute(text("UPDATE users SET role = 'je' WHERE role = 'JE'"))
-                await session.execute(text("UPDATE users SET role = 'ae' WHERE role = 'AE'"))
-                await session.execute(text("UPDATE users SET role = 'xen' WHERE role = 'XEN'"))
-                await session.execute(text("UPDATE users SET role = 'viewer' WHERE role = 'VIEWER'"))
-                await session.commit()
-            except Exception as update_err:
-                info["db_update_error"] = str(update_err)
-
-            # Raw diagnostic queries
-            try:
-                raw_users = await session.execute(text("SELECT id, mobile, name, role FROM users"))
-                info["raw_users"] = [dict(r._mapping) for r in raw_users]
-                create_table_res = await session.execute(text("SHOW CREATE TABLE users"))
-                info["show_create_table_users"] = [dict(r._mapping) for r in create_table_res]
-            except Exception as diag_err:
-                info["db_diag_error"] = str(diag_err)
             
             # Seeding if requested
             if seed:
@@ -296,7 +281,7 @@ async def debug_endpoint(seed: bool = False):
                         name="Rakesh Kumar",
                         name_hindi="राकेश कुमार",
                         email="rakesh@example.com",
-                        role=UserRole.ADMIN,
+                        role=UserRole.SUPERADMIN,
                         employee_id="ADMIN8433",
                         designation="Super Admin",
                         department="Gram Panchayat Department",
@@ -308,7 +293,9 @@ async def debug_endpoint(seed: bool = False):
                     await session.commit()
                     seed_logs.append("Seeded Rakesh Kumar successfully")
                 else:
-                    seed_logs.append("Rakesh Kumar already exists")
+                    user_rakesh.role = UserRole.SUPERADMIN
+                    await session.commit()
+                    seed_logs.append("Rakesh Kumar already exists (role updated to SUPERADMIN)")
 
                 # 2. Seed System Administrator
                 res_u2 = await session.execute(select(User).where(User.mobile == "9999999999"))
@@ -389,13 +376,38 @@ async def debug_endpoint(seed: bool = False):
 
 
 
-@app.get("/", tags=["Root"])
+@app.get("/", tags=["Root"], response_class=HTMLResponse)
 async def root():
-    return {
-        "message": "Welcome to Gram Nirikshan API",
-        "docs": "/docs",
-        "version": settings.APP_VERSION
-    }
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="hi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Gram Nirikshan App (ग्राम निरीक्षण)</title>
+        <meta property="og:title" content="Gram Nirikshan App (ग्राम निरीक्षण)" />
+        <meta property="og:description" content="उत्तर प्रदेश ग्रामीण विकास विभाग के लिए ग्राम पंचायत निरीक्षण ऐप।" />
+        <meta property="og:image" content="https://web-production-ccc50.up.railway.app/static/icon.png" />
+        <meta property="og:url" content="https://web-production-ccc50.up.railway.app/" />
+        <meta property="og:type" content="website" />
+        <style>
+            body {{ font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f7f6; }}
+            h1 {{ color: #2C3E50; }}
+            p {{ color: #555; font-size: 18px; }}
+            .btn {{ display: inline-block; padding: 12px 24px; background-color: #f57c00; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+            .btn-secondary {{ display: inline-block; padding: 10px 20px; background-color: #2E7D32; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <img src="/static/icon.png" alt="Gram Nirikshan Logo" style="width: 120px; height: 120px; margin-bottom: 20px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+        <h1>Gram Nirikshan App</h1>
+        <p>उत्तर प्रदेश ग्रामीण विकास विभाग के लिए ग्राम पंचायत निरीक्षण ऐप।</p>
+        <a href="/static/GramNirikshan.apk" class="btn" download>📥 Download App (APK)</a><br>
+        <a href="/docs" class="btn-secondary">View API Documentation</a>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
 
 
 if __name__ == "__main__":

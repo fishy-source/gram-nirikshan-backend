@@ -44,5 +44,47 @@ async def get_db():
 
 async def create_tables():
     """Create all database tables."""
+    from sqlalchemy import text
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Check and add new columns to inspections table if they don't exist
+        try:
+            await conn.execute(text("ALTER TABLE users MODIFY COLUMN role VARCHAR(50) NOT NULL DEFAULT 'inspector'"))
+        except Exception as e:
+            print(f"Error modifying role column: {e}")
+            
+        try:
+            res = await conn.execute(text("SHOW COLUMNS FROM users LIKE 'aadhar_number'"))
+            if not res.fetchone():
+                await conn.execute(text("ALTER TABLE users ADD COLUMN aadhar_number VARCHAR(12) NULL UNIQUE"))
+        except Exception as e:
+            print(f"Error adding aadhar_number: {e}")
+            
+        try:
+            res = await conn.execute(text("SHOW COLUMNS FROM inspections LIKE 'investigator_name'"))
+            if not res.fetchone():
+                await conn.execute(text("ALTER TABLE inspections ADD COLUMN investigator_name VARCHAR(200) NULL"))
+        except Exception as e:
+            print(f"Error adding investigator_name: {e}")
+            
+        try:
+            res = await conn.execute(text("SHOW COLUMNS FROM inspections LIKE 'district'"))
+            if not res.fetchone():
+                await conn.execute(text("ALTER TABLE inspections ADD COLUMN district VARCHAR(100) NULL"))
+        except Exception as e:
+            print(f"Error adding district: {e}")
+            
+        try:
+            res = await conn.execute(text("SHOW COLUMNS FROM inspections LIKE 'block'"))
+            if not res.fetchone():
+                await conn.execute(text("ALTER TABLE inspections ADD COLUMN block VARCHAR(100) NULL"))
+        except Exception as e:
+            print(f"Error adding block: {e}")
+            
+        try:
+            res = await conn.execute(text("SHOW COLUMNS FROM inspections LIKE 'map_image_path'"))
+            if not res.fetchone():
+                await conn.execute(text("ALTER TABLE inspections ADD COLUMN map_image_path VARCHAR(500) NULL"))
+        except Exception as e:
+            print(f"Error adding map_image_path: {e}")

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inspection Report</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
+        body {
+            font-family: 'Helvetica', sans-serif;
+            color: #333;
+            line-height: 1.5;
+            font-size: 11pt;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #2e7d32;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #2e7d32;
+            margin: 0;
+            font-size: 24pt;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section h2 {
+            color: #fff;
+            background-color: #2e7d32;
+            padding: 5px 10px;
+            font-size: 14pt;
+            border-radius: 3px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            width: 25%;
+        }
+        .photo-grid {
+            display: block;
+            width: 100%;
+        }
+        .photo-item {
+            display: inline-block;
+            width: 45%;
+            margin: 2%;
+            text-align: center;
+        }
+        .photo-item img {
+            max-width: 100%;
+            border: 1px solid #ccc;
+            padding: 2px;
+        }
+        .photo-caption {
+            font-size: 9pt;
+            color: #555;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>INSPECTION REPORT</h1>
+    </div>
+
+    <div class="section">
+        <h2>Basic Information</h2>
+        <table>
+            <tr>
+                <th>Inspection ID</th>
+                <td>{{ inspection.inspection_id }}</td>
+                <th>Status</th>
+                <td style="text-transform: capitalize;">{{ inspection.status.value }}</td>
+            </tr>
+            <tr>
+                <th>Inspector</th>
+                <td>{{ engineer_name }}</td>
+                <th>District</th>
+                <td>{{ panchayat.district if panchayat else 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Gram Panchayat</th>
+                <td>{{ panchayat.name if panchayat else 'N/A' }}</td>
+                <th>Village</th>
+                <td>{{ panchayat.village if panchayat else 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Block</th>
+                <td>{{ panchayat.block if panchayat else 'N/A' }}</td>
+                <th>Date</th>
+                <td>{{ inspection.inspection_date.strftime('%Y-%m-%d') if inspection.inspection_date else 'N/A' }}</td>
+            </tr>
+            <tr>
+                <th>Project Name</th>
+                <td>{{ inspection.project_name or 'N/A' }}</td>
+                <th>Work Code</th>
+                <td>{{ inspection.project_code or 'N/A' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Location & GPS Tracking</h2>
+        <table>
+            <tr>
+                <th>Check-in Time</th>
+                <td>{{ inspection.checkin_time.strftime('%Y-%m-%d %H:%M') if inspection.checkin_time else 'N/A' }}</td>
+                <th>Check-in GPS</th>
+                <td>{{ inspection.checkin_latitude }}, {{ inspection.checkin_longitude }}</td>
+            </tr>
+            <tr>
+                <th>Check-out Time</th>
+                <td>{{ inspection.checkout_time.strftime('%Y-%m-%d %H:%M') if inspection.checkout_time else 'N/A' }}</td>
+                <th>Check-out GPS</th>
+                <td>{{ inspection.checkout_latitude }}, {{ inspection.checkout_longitude }}</td>
+            </tr>
+        </table>
+    </div>
+
+    {% if map_image %}
+    <div class="section">
+        <h2>Inspection Location Map</h2>
+        <div style="text-align: center;">
+            <img src="{{ map_image }}" alt="Map" style="max-width: 80%; border: 1px solid #333;">
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <h2>Detailed Inspection Report</h2>
+        <div style="white-space: pre-wrap;">{{ ai_report_content }}</div>
+    </div>
+
+    {% if photos %}
+    <div class="section" style="page-break-before: always;">
+        <h2>Photographs</h2>
+        <div class="photo-grid">
+            {% for photo in photos %}
+            <div class="photo-item">
+                <img src="{{ photo.absolute_path }}" alt="Site Photo">
+                <div class="photo-caption">{{ photo.caption or 'Site Photograph' }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if approvals %}
+    <div class="section">
+        <h2>Approval Details</h2>
+        <table>
+            <tr>
+                <th>Level</th>
+                <th>Officer</th>
+                <th>Status</th>
+                <th>Remarks</th>
+                <th>Date</th>
+            </tr>
+            {% for apprv in approvals %}
+            <tr>
+                <td>{{ apprv.level }}</td>
+                <td>{{ apprv.approver.name if apprv.approver else 'N/A' }}</td>
+                <td style="text-transform: capitalize;">{{ apprv.action.value }}</td>
+                <td>{{ apprv.remarks or '' }}</td>
+                <td>{{ apprv.updated_at.strftime('%Y-%m-%d') if apprv.updated_at else '' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+</body>
+</html>
