@@ -254,6 +254,25 @@ async def debug_endpoint(seed: bool = False):
         "DB_USER": os.getenv("DB_USER") or os.getenv("MYSQLUSER"),
         "DB_PASSWORD_SET": bool(os.getenv("DB_PASSWORD") or os.getenv("MYSQLPASSWORD") or settings.DB_PASSWORD),
     }
+    query_log = []
+    try:
+        async with AsyncSessionLocal() as session:
+            from sqlalchemy.sql import text
+            try:
+                await session.execute(text("ALTER TABLE users MODIFY COLUMN role VARCHAR(50) NOT NULL DEFAULT 'inspector'"))
+                query_log.append("Modified role column")
+            except Exception as e:
+                query_log.append(f"role error: {e}")
+                
+            try:
+                await session.execute(text("ALTER TABLE users ADD COLUMN aadhar_number VARCHAR(12) NULL UNIQUE"))
+                query_log.append("Added aadhar_number column")
+            except Exception as e:
+                query_log.append(f"aadhar error: {e}")
+            
+            info["query_log"] = query_log
+            await session.commit()
+
 
     # Test DB Connection and list data
     try:
