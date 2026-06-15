@@ -176,7 +176,7 @@
                 <img src="{{ photo.absolute_path }}" alt="स्थल की तस्वीर">
                 <div class="photo-caption">{{ photo.caption or 'स्थल की तस्वीर' }}</div>
                 {% if photo.latitude and photo.longitude %}
-                <div style="font-size: 9pt; color: #555; text-align: center; margin-top: 4px;">अक्षांश: {{ photo.latitude | round(6) }}, देशांतर: {{ photo.longitude | round(6) }}</div>
+                <div style="font-size: 9pt; color: #555; text-align: center; margin-top: 4px;">Lat: {{ photo.latitude | float | round(6) }}, Lng: {{ photo.longitude | float | round(6) }}</div>
                 {% endif %}
             </div>
             {% endfor %}
