@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Gram Nirikshan API"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
-    SECRET_KEY: str = secrets.token_urlsafe(32)
+    SECRET_KEY: str = "super_secret_gram_nirikshan_key_2026_!@#"
     API_PREFIX: str = "/api/v1"
 
     # CORS
@@ -42,7 +42,7 @@ class Settings(BaseSettings):
         return f"mysql+aiomysql://{user}:{encoded_password}@{host}:{port}/{name}"
 
     # JWT
-    JWT_SECRET_KEY: str = secrets.token_urlsafe(32)
+    JWT_SECRET_KEY: str = "super_secret_gram_nirikshan_key_2026_!@#"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
