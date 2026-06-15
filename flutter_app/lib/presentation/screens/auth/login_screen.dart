@@ -46,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final isHindi = context.watch<LanguageProvider>().isHindi;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -82,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             ),
                           ],
                           image: const DecorationImage(
-                            image: NetworkImage('https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Yogi_Adityanath_in_2024.jpg/400px-Yogi_Adityanath_in_2024.jpg'),
+                            image: AssetImage('assets/images/yogi.jpg'),
                             fit: BoxFit.cover,
                           ),
                         ),

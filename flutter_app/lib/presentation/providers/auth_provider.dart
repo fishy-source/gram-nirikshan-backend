@@ -42,8 +42,22 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _api.loginWithPassword(mobile, password);
-      final data = response.data;
+      dynamic responseData;
+      try {
+        final response = await _api.loginWithPassword(mobile, password);
+        responseData = response.data;
+      } catch (e) {
+        // Fallback for old backend that hasn't updated to password login
+        if (e.toString().contains('404')) {
+          await _api.sendOtp(mobile);
+          final otpResponse = await _api.verifyOtp(mobile, password);
+          responseData = otpResponse.data;
+        } else {
+          rethrow;
+        }
+      }
+
+      final data = responseData;
 
       await _storage.write(key: AppConstants.accessTokenKey, value: data['access_token']);
       await _storage.write(key: AppConstants.refreshTokenKey, value: data['refresh_token']);

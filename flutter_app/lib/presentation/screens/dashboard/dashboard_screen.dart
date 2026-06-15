@@ -28,14 +28,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadStats() async {
+    if (mounted) {
+      setState(() => _loading = true);
+    }
     try {
       final response = await ApiService().getDashboardStats();
-      setState(() {
-        _stats = DashboardStats.fromJson(response.data);
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _stats = DashboardStats.fromJson(response.data);
+          _loading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.read<LanguageProvider>().isHindi ? 'रिफ्रेश करने में विफल' : 'Failed to refresh data')),
+        );
+      }
     }
   }
 
@@ -250,7 +260,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final actions = [
       _QuickAction(context.tr('new_inspection'), Icons.add_circle_rounded, AppTheme.primaryColor, '/inspections/new'),
       _QuickAction(context.tr('calendar'), Icons.calendar_today_rounded, AppTheme.infoColor, '/calendar'),
-      _QuickAction(context.tr('ai_assistant'), Icons.smart_toy_rounded, AppTheme.accentColor, '/ai-assistant'),
       _QuickAction(context.tr('map'), Icons.map_rounded, AppTheme.successColor, '/map'),
       _QuickAction(context.tr('view_reports'), Icons.picture_as_pdf_rounded, AppTheme.errorColor, '/reports'),
       _QuickAction(context.tr('photo_upload'), Icons.camera_alt_rounded, AppTheme.secondaryColor, '/photos'),

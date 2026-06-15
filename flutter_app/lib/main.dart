@@ -228,17 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _pages),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AIAssistantScreen()),
-          );
-        },
-        backgroundColor: AppTheme.primaryColor,
-        icon: const Icon(Icons.smart_toy_rounded, color: Colors.white),
-        label: Text(context.tr('ai_assistant'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      ),
+
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
