@@ -63,6 +63,24 @@ class VerifyOTPRequest(BaseModel):
         return v
 
 
+class LoginRequest(BaseModel):
+    mobile: str
+    password: str
+
+    @field_validator("mobile")
+    @classmethod
+    def validate_mobile(cls, v):
+        v = v.strip().replace(" ", "")
+        if v.startswith("+91"):
+            v = v[3:]
+        return v
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
 class UserResponse(BaseModel):
     id: str
     mobile: str
@@ -99,6 +117,7 @@ class RefreshTokenRequest(BaseModel):
 
 class UserCreate(BaseModel):
     mobile: str
+    password: Optional[str] = "123456"
     name: str
     name_hindi: Optional[str] = None
     email: Optional[EmailStr] = None

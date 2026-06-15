@@ -155,7 +155,14 @@ async def create_user(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Mobile number already registered")
 
-    user = User(**data.model_dump())
+    dump_data = data.model_dump()
+    password = dump_data.pop("password", "123456")
+    if not password:
+        password = "123456"
+    from app.core.security import hash_password
+    dump_data["hashed_password"] = hash_password(password)
+    
+    user = User(**dump_data)
     db.add(user)
     await db.flush()
     await db.refresh(user)

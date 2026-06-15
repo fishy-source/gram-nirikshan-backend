@@ -175,8 +175,8 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
   Future<void> _pickGalleryImages() async {
     try {
       final pickedFiles = await _picker.pickMultiImage(
-        imageQuality: 85,
-        maxWidth: 1200,
+        imageQuality: 50,
+        maxWidth: 800,
       );
       if (pickedFiles.isNotEmpty) {
         setState(() {
@@ -196,8 +196,8 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     try {
       final pickedFile = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 85,
-        maxWidth: 1200,
+        imageQuality: 50,
+        maxWidth: 800,
       );
       if (pickedFile != null) {
         setState(() {
@@ -251,8 +251,8 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     try {
       final pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 1200,
+        imageQuality: 50,
+        maxWidth: 800,
       );
       if (pickedFile != null) {
         setState(() {

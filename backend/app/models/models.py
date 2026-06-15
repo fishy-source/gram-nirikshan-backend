@@ -101,6 +101,7 @@ class User(Base):
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     mobile = Column(String(15), unique=True, nullable=False, index=True)
+    hashed_password = Column(String(255), nullable=True)  # Added for password login
     name = Column(String(100), nullable=False)
     name_hindi = Column(String(200), nullable=True)
     email = Column(String(100), unique=True, nullable=True)

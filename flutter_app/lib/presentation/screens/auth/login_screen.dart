@@ -267,7 +267,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       }
       final success = await auth.verifyOTP(_mobileController.text.trim(), _otp);
       if (success && mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacementNamed(context, '/welcome');
       }
     }
   }

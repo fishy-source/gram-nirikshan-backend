@@ -90,8 +90,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
     try {
       final pickedFile = await _picker.pickImage(
         source: source,
-        imageQuality: 85,
-        maxWidth: 1200,
+        imageQuality: 50,
+        maxWidth: 800,
       );
       if (pickedFile != null) {
         setState(() {
@@ -162,7 +162,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
               color: img.ColorRgb8(255, 255, 255),
             );
             
-            final watermarkedBytes = img.encodeJpg(originalImage, quality: 85);
+            final watermarkedBytes = img.encodeJpg(originalImage, quality: 50);
             final tempDir = await getTemporaryDirectory();
             fileToUpload = File('${tempDir.path}/watermarked_${DateTime.now().millisecondsSinceEpoch}.jpg');
             await fileToUpload.writeAsBytes(watermarkedBytes);

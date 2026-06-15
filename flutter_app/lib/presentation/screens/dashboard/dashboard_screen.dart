@@ -93,6 +93,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: Text(context.tr('app_title'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       actions: [
+        IconButton(icon: const Icon(Icons.refresh, color: Colors.white), onPressed: _loadStats),
         IconButton(icon: const Icon(Icons.notifications_outlined, color: Colors.white), onPressed: () {}),
         PopupMenuButton(
           icon: const Icon(Icons.more_vert, color: Colors.white),

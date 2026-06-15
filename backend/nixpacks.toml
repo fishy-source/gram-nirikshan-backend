@@ -15,6 +15,13 @@ nixPkgs = [
   "wkhtmltopdf"
 ]
 
+[phases.setup_apt]
+aptPkgs = [
+  "fonts-noto-core",
+  "fonts-noto-ui-core",
+  "fonts-noto-sans-devanagari"
+]
+
 [phases.install]
 cmds = [
   "pip install --upgrade pip",

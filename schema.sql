@@ -10,6 +10,7 @@ USE gram_nirikshan;
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
     mobile VARCHAR(15) NOT NULL UNIQUE,
+    hashed_password VARCHAR(255) NULL,
     name VARCHAR(100) NOT NULL,
     name_hindi VARCHAR(200),
     email VARCHAR(100) UNIQUE,

@@ -10,9 +10,10 @@ import logging
 
 from app.db.database import get_db
 from app.models.models import User, OTPRecord
-from app.schemas.schemas import SendOTPRequest, VerifyOTPRequest, TokenResponse, RefreshTokenRequest, MessageResponse
-from app.core.security import generate_otp, create_access_token, create_refresh_token, decode_token
+from app.schemas.schemas import SendOTPRequest, VerifyOTPRequest, TokenResponse, RefreshTokenRequest, MessageResponse, LoginRequest, ChangePasswordRequest
+from app.core.security import generate_otp, create_access_token, create_refresh_token, decode_token, verify_password, hash_password
 from app.core.config import settings
+from app.core.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 logger = logging.getLogger(__name__)
@@ -146,7 +147,71 @@ async def verify_otp(
     )
 
 
-@router.post("/refresh", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse)
+async def login_with_password(
+    request: LoginRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Login using mobile number and password."""
+    mobile = request.mobile
+    password = request.password
+
+    # Get user
+    result = await db.execute(select(User).where(User.mobile == mobile))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found. Please contact admin.",
+        )
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
+
+    # Verify password
+    if not user.hashed_password:
+        # Backward compatibility for users created before password auth
+        if password != "123456":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+    else:
+        if not verify_password(password, user.hashed_password):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+
+    # Generate tokens
+    token_data = {"sub": user.id, "role": user.role.value, "mobile": user.mobile}
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
+
+    from app.schemas.schemas import UserResponse
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user=UserResponse.model_validate(user),
+    )
+
+
+@router.post("/change-password", response_model=MessageResponse)
+async def change_password(
+    request: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Change user password."""
+    # Verify old password
+    if not current_user.hashed_password:
+        if request.old_password != "123456":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid old password")
+    else:
+        if not verify_password(request.old_password, current_user.hashed_password):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid old password")
+
+    # Update password
+    current_user.hashed_password = hash_password(request.new_password)
+    await db.commit()
+    
+    return MessageResponse(message="Password updated successfully", success=True)
+
 async def refresh_token(
     request: RefreshTokenRequest,
     db: AsyncSession = Depends(get_db),
