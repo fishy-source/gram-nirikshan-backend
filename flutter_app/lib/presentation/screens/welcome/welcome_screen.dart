@@ -33,11 +33,18 @@ class WelcomeScreen extends StatelessWidget {
               child: Column(
                 children: [
                   Container(
-                    width: 80,
-                    height: 80,
+                    width: 120,
+                    height: 120,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                       image: const DecorationImage(
                         image: NetworkImage('https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Yogi_Adityanath_in_2024.jpg/400px-Yogi_Adityanath_in_2024.jpg'),
                         fit: BoxFit.cover,
