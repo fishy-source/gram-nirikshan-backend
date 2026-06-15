@@ -433,7 +433,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
           const SizedBox(height: 20),
 
           // Approval Trail / History
-          if (user?.canApprove == true && provider.approvals.isNotEmpty) ...[
+          if (provider.approvals.isNotEmpty) ...[
             _buildApprovalHistoryCard(provider.approvals),
             const SizedBox(height: 20),
           ],
