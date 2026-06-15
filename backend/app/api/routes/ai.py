@@ -68,8 +68,8 @@ async def call_gemini(prompt: str, language: str = "en") -> str:
     model_name = settings.GEMINI_MODEL
     fallback_models = [model_name]
     
-    # Add standard available models as fallbacks. In SDK 0.3.2, "gemini-pro" is the valid name!
-    for fallback in ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro", "gemini-1.0-pro"]:
+    # Add modern available models as fallbacks.
+    for fallback in ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-pro-latest", "gemini-flash-latest", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro", "gemini-1.0-pro"]:
         if fallback not in fallback_models:
             fallback_models.append(fallback)
 
