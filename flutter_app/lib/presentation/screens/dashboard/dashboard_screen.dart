@@ -8,6 +8,7 @@ import '../../../core/services/api_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../../data/models/models.dart';
+import '../../widgets/floating_ai_robot.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -43,33 +44,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final user = context.watch<AuthProvider>().currentUser;
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
-      body: RefreshIndicator(
-        onRefresh: _loadStats,
-        child: CustomScrollView(
-          slivers: [
-            _buildAppBar(user),
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _buildWelcomeBanner(user),
-                  const SizedBox(height: 16),
-                  if (_loading)
-                    const Center(child: CircularProgressIndicator())
-                  else if (_stats != null) ...[
-                    _buildStatsGrid(_stats!),
-                    const SizedBox(height: 20),
-                    _buildStatusChart(_stats!),
-                    const SizedBox(height: 20),
-                  ],
-                  _buildQuickActions(context),
-                  const SizedBox(height: 20),
-                  _buildRecentActivity(context),
-                ]),
-              ),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: _loadStats,
+            child: CustomScrollView(
+              slivers: [
+                _buildAppBar(user),
+                SliverPadding(
+                  padding: const EdgeInsets.all(16),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      _buildWelcomeBanner(user),
+                      const SizedBox(height: 16),
+                      if (_loading)
+                        const Center(child: CircularProgressIndicator())
+                      else if (_stats != null) ...[
+                        _buildStatsGrid(_stats!),
+                        const SizedBox(height: 20),
+                        _buildStatusChart(_stats!),
+                        const SizedBox(height: 20),
+                      ],
+                      _buildQuickActions(context),
+                      const SizedBox(height: 20),
+                      _buildRecentActivity(context),
+                    ]),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          FloatingAIRobot(
+            onTap: () => Navigator.pushNamed(context, '/ai-assistant'),
+          ),
+        ],
       ),
     );
   }
