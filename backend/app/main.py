@@ -9,6 +9,10 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from contextlib import asynccontextmanager
 import logging
 from pathlib import Path
+import mimetypes
+
+# Fix for Android APK downloads (WhatsApp sharing issue)
+mimetypes.add_type('application/vnd.android.package-archive', '.apk')
 
 from app.core.config import settings
 from app.db.database import create_tables
@@ -386,6 +390,23 @@ async def debug_endpoint(seed: bool = False):
 
 
 
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+import os
+
+@app.get("/download/apk", tags=["Root"])
+async def download_apk():
+    """Forces the browser/WhatsApp to download the APK correctly."""
+    apk_path = Path("app/static/GramNirikshan.apk")
+    if apk_path.exists():
+        return FileResponse(
+            path=str(apk_path),
+            media_type="application/vnd.android.package-archive",
+            filename="GramNirikshan.apk",
+            headers={"Content-Disposition": "attachment; filename=GramNirikshan.apk"}
+        )
+    return HTMLResponse(content="APK not found.", status_code=404)
+
+
 @app.get("/", tags=["Root"], response_class=HTMLResponse)
 async def root():
     html_content = f"""
@@ -412,7 +433,7 @@ async def root():
         <img src="/static/icon.png" alt="Gram Nirikshan Logo" style="width: 120px; height: 120px; margin-bottom: 20px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
         <h1>Gram Nirikshan App</h1>
         <p>उत्तर प्रदेश ग्रामीण विकास विभाग के लिए ग्राम पंचायत निरीक्षण ऐप।</p>
-        <a href="/static/GramNirikshan.apk" class="btn" download>📥 Download App (APK)</a>
+        <a href="/download/apk" class="btn">📥 Download App (APK)</a>
     </body>
     </html>
     """
