@@ -25,6 +25,7 @@ import 'presentation/screens/reports/pdf_preview_screen.dart';
 import 'presentation/screens/map/map_screen.dart';
 import 'presentation/screens/calendar/calendar_screen.dart';
 import 'presentation/screens/users/add_user_screen.dart';
+import 'presentation/screens/users/users_list_screen.dart';
 import 'presentation/providers/language_provider.dart';
 
 void main() async {

@@ -69,12 +69,12 @@ class _FloatingAIRobotState extends State<FloatingAIRobot> with SingleTickerProv
           animation: _controller,
           builder: (context, child) {
             // Hover effect only when not dragging
-            final hoverOffset = _isDragging ? 0.0 : sin(_controller.value * pi) * 10;
+            final hoverOffset = _isDragging ? 0.0 : sin(_controller.value * pi) * 12;
             return Transform.translate(
               offset: Offset(0, hoverOffset),
               child: SizedBox(
-                width: 60,
-                height: 80,
+                width: 80,
+                height: 100,
                 child: CustomPaint(
                   painter: _RobotPainter(_controller.value),
                 ),
@@ -100,36 +100,36 @@ class _RobotPainter extends CustomPainter {
 
     final centerX = size.width / 2;
     
-    // 1. Antenna (Choti)
-    paint.color = Colors.grey[700]!;
+    // 1. Antenna (Choti) - More prominent!
+    paint.color = Colors.grey[800]!;
     canvas.drawLine(
-      Offset(centerX, 15),
-      Offset(centerX, 5),
-      Paint()..color = Colors.grey[700]!..strokeWidth = 3..style = PaintingStyle.stroke,
+      Offset(centerX, 20),
+      Offset(centerX, 0), // Higher up
+      Paint()..color = Colors.grey[800]!..strokeWidth = 3..style = PaintingStyle.stroke..strokeCap = StrokeCap.round,
     );
-    // Antenna glowing bulb
-    paint.color = animationValue > 0.5 ? Colors.redAccent : Colors.orangeAccent;
-    canvas.drawCircle(Offset(centerX, 5), 4, paint);
+    // Antenna glowing bulb (binks)
+    paint.color = animationValue > 0.5 ? Colors.redAccent : Colors.amberAccent;
+    canvas.drawCircle(Offset(centerX, 0), 6, paint);
 
     // 2. Head
     paint.color = const Color(0xFF2E86C1); // Blue robot head
     final headRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: Offset(centerX, 30), width: 40, height: 30),
-      const Radius.circular(8),
+      Rect.fromCenter(center: Offset(centerX, 38), width: 44, height: 34),
+      const Radius.circular(12),
     );
     canvas.drawRRect(headRect, paint);
 
     // Face / Screen
     paint.color = Colors.white;
     final screenRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: Offset(centerX, 30), width: 32, height: 20),
-      const Radius.circular(4),
+      Rect.fromCenter(center: Offset(centerX, 38), width: 36, height: 22),
+      const Radius.circular(6),
     );
     canvas.drawRRect(screenRect, paint);
 
     // Eyes
     paint.color = const Color(0xFF2E86C1);
-    final eyeY = 28.0;
+    final eyeY = 35.0;
     // Blink animation
     final eyeHeight = (animationValue > 0.95) ? 2.0 : 6.0; 
     canvas.drawOval(Rect.fromCenter(center: Offset(centerX - 8, eyeY), width: 6, height: eyeHeight), paint);
@@ -137,36 +137,36 @@ class _RobotPainter extends CustomPainter {
 
     // Smile
     final smilePath = Path()
-      ..moveTo(centerX - 6, 34)
-      ..quadraticBezierTo(centerX, 38, centerX + 6, 34);
-    canvas.drawPath(smilePath, Paint()..color = const Color(0xFF2E86C1)..strokeWidth = 2..style = PaintingStyle.stroke..strokeCap = StrokeCap.round);
+      ..moveTo(centerX - 8, 42)
+      ..quadraticBezierTo(centerX, 48, centerX + 8, 42);
+    canvas.drawPath(smilePath, Paint()..color = const Color(0xFF2E86C1)..strokeWidth = 2.5..style = PaintingStyle.stroke..strokeCap = StrokeCap.round);
 
     // 3. Body
     paint.color = Colors.grey[300]!;
     paint.style = PaintingStyle.fill;
     final bodyRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: Offset(centerX, 55), width: 24, height: 20),
-      const Radius.circular(4),
+      Rect.fromCenter(center: Offset(centerX, 68), width: 30, height: 24),
+      const Radius.circular(6),
     );
     canvas.drawRRect(bodyRect, paint);
 
-    // 4. Tail (Pooch) - Jet exhaust
+    // 4. Tail (Pooch) - Actual curved tail swinging
+    final tailSway = sin(animationValue * pi * 2) * 15; // Swings left and right
     final tailPath = Path()
-      ..moveTo(centerX - 6, 65)
-      ..lineTo(centerX + 6, 65)
-      ..lineTo(centerX, 65 + (animationValue * 15)) // Flame flickers based on animation
-      ..close();
+      ..moveTo(centerX, 78)
+      ..quadraticBezierTo(centerX, 90, centerX + tailSway, 95);
     
-    paint.color = Colors.orangeAccent.withOpacity(0.8);
-    canvas.drawPath(tailPath, paint);
+    canvas.drawPath(
+      tailPath, 
+      Paint()
+        ..color = Colors.grey[700]!
+        ..strokeWidth = 4
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+    );
     
-    final innerTailPath = Path()
-      ..moveTo(centerX - 3, 65)
-      ..lineTo(centerX + 3, 65)
-      ..lineTo(centerX, 65 + (animationValue * 8))
-      ..close();
-    paint.color = Colors.yellowAccent.withOpacity(0.9);
-    canvas.drawPath(innerTailPath, paint);
+    // Tail tip (Pooch ka sira)
+    canvas.drawCircle(Offset(centerX + tailSway, 95), 5, Paint()..color = const Color(0xFF2E86C1));
   }
 
   @override

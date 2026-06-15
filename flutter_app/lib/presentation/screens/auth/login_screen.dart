@@ -67,24 +67,36 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   children: [
                     const SizedBox(height: 40),
                     // Logo / Icon
-                    Container(
-                      width: 100, height: 100,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white30, width: 2),
+                    Center(
+                      child: Container(
+                        width: 140,
+                        height: 140,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 15,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                          image: const DecorationImage(
+                            image: NetworkImage('https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Yogi_Adityanath_in_2024.jpg/400px-Yogi_Adityanath_in_2024.jpg'),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ),
-                      child: const Icon(Icons.domain_verification_rounded, size: 54, color: Colors.white),
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      context.tr('app_title'),
-                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold,
-                          color: Colors.white, fontFamily: 'Poppins'),
+                      isHindi ? 'ग्राम पंचायत निरीक्षण' : 'Gram Panchayat Inspection',
+                      style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
-                    const Text(
-                      'Gram Nirikshan App',
-                      style: TextStyle(fontSize: 16, color: Colors.white70, fontFamily: 'Poppins'),
+                    const SizedBox(height: 8),
+                    Text(
+                      isHindi ? 'लॉग-इन करें' : 'Sign in to continue',
+                      style: const TextStyle(fontSize: 16, color: Colors.white70),
                     ),
                     const SizedBox(height: 8),
                     Text(

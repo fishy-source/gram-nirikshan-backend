@@ -12,9 +12,10 @@
         body {
             font-family: 'Noto Sans Devanagari', sans-serif;
             color: #333;
-            line-height: 1.5;
+            line-height: 1.6;
             font-size: 11pt;
             text-align: justify;
+            text-justify: inter-word;
         }
         .header {
             text-align: center;
@@ -147,19 +148,19 @@
         {% if ai_report_content is mapping %}
             <div style="margin-bottom: 15px;">
                 <h3 style="color: #2e7d32; font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 4px;">1. कार्य का विवरण और मुख्य निष्कर्ष</h3>
-                <div style="white-space: pre-wrap; padding: 10px; background-color: #f9f9f9; border-left: 4px solid #2e7d32;">{{ ai_report_content.get('work_description_and_findings', '') }}</div>
+                <div style="white-space: pre-line; text-align: justify; text-indent: 20px; padding: 10px; background-color: #f9f9f9; border-left: 4px solid #2e7d32;">{{ ai_report_content.get('work_description_and_findings', '') }}</div>
             </div>
             <div style="margin-bottom: 15px;">
-                <h3 style="color: #d32f2f; font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 4px;">2. कमियां / पहचानी गई समस्याएं</h3>
-                <div style="white-space: pre-wrap; padding: 10px; background-color: #fff3f3; border-left: 4px solid #d32f2f;">{{ ai_report_content.get('deficiencies_identified', '') }}</div>
+                <h3 style="color: #d32f2f; font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 4px;">2. कमियाँ / पाई गई समस्याएँ</h3>
+                <div style="white-space: pre-line; text-align: justify; text-indent: 20px; padding: 10px; background-color: #fff3f3; border-left: 4px solid #d32f2f;">{{ ai_report_content.get('deficiencies_identified', '') }}</div>
             </div>
             <div style="margin-bottom: 15px;">
-                <h3 style="color: #1976d2; font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 4px;">3. सुधारात्मक कार्रवाई / सिफारिशें</h3>
-                <div style="white-space: pre-wrap; padding: 10px; background-color: #e3f2fd; border-left: 4px solid #1976d2;">{{ ai_report_content.get('corrective_recommendations', '') }}</div>
+                <h3 style="color: #1976d2; font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 4px;">3. सुधारात्मक कार्रवाई / सुझाव</h3>
+                <div style="white-space: pre-line; text-align: justify; text-indent: 20px; padding: 10px; background-color: #e3f2fd; border-left: 4px solid #1976d2;">{{ ai_report_content.get('corrective_recommendations', '') }}</div>
             </div>
             <div style="margin-bottom: 15px;">
                 <h3 style="color: #f57c00; font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 4px;">4. निष्कर्ष</h3>
-                <div style="white-space: pre-wrap; padding: 10px; background-color: #fff8e1; border-left: 4px solid #f57c00;">{{ ai_report_content.get('conclusion', '') }}</div>
+                <div style="white-space: pre-line; text-align: justify; text-indent: 20px; padding: 10px; background-color: #fff8e1; border-left: 4px solid #f57c00;">{{ ai_report_content.get('conclusion', '') }}</div>
             </div>
         {% else %}
             <div style="white-space: pre-wrap;">{{ ai_report_content }}</div>
