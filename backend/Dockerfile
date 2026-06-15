@@ -1,12 +1,13 @@
 FROM python:3.12-slim
 
 # System dependencies for Pillow, ReportLab, mysqlclient
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     default-libmysqlclient-dev \
     libffi-dev \
     libssl-dev \
     fonts-liberation \
+    fonts-noto-core \
     fontconfig \
     && rm -rf /var/lib/apt/lists/*
 

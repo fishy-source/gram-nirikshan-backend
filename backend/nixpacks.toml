@@ -16,7 +16,8 @@ nixPkgs = [
   "pango",
   "cairo",
   "gdk-pixbuf",
-  "glib"
+  "glib",
+  "noto-fonts"
 ]
 
 [phases.install]
