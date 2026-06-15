@@ -68,8 +68,8 @@ async def call_gemini(prompt: str, language: str = "en") -> str:
     model_name = settings.GEMINI_MODEL
     fallback_models = [model_name]
     
-    # Add standard available models as fallbacks
-    for fallback in ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]:
+    # Add standard available models as fallbacks. In SDK 0.3.2, "gemini-pro" is the valid name!
+    for fallback in ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro", "gemini-1.0-pro"]:
         if fallback not in fallback_models:
             fallback_models.append(fallback)
 
@@ -87,14 +87,17 @@ async def call_gemini(prompt: str, language: str = "en") -> str:
             model = genai.GenerativeModel(
                 model_name=clean_model_name,
             )
-            response = model.generate_content(full_prompt)
+            response = await model.generate_content_async(full_prompt)
+            if not response.text:
+                raise ValueError("Empty response from AI")
             return response.text
         except Exception as e:
             logger.warning(f"Failed to generate content with model {clean_model_name}: {e}. Trying fallback...")
             last_error = e
             
     logger.error(f"Gemini API error (all fallbacks failed): {last_error}")
-    return f"AI Error: {str(last_error)}"
+    # Return a clean error message that the user can understand instead of 500 error
+    return "माफ़ करें, मैं अभी इस प्रश्न का उत्तर देने में असमर्थ हूँ। कृपया कुछ देर बाद प्रयास करें।" if language == "hi" else "Sorry, I am currently unable to answer this question. Please try again later."
 
 
 @router.post("/chat", response_model=AIChatResponse)
