@@ -252,6 +252,16 @@ async def debug_endpoint(seed: bool = False):
     info = {}
     info["startup_error"] = getattr(app.state, "startup_error", None)
     info["startup_traceback"] = getattr(app.state, "startup_traceback", None)
+    
+    # Test WeasyPrint
+    try:
+        from weasyprint import HTML
+        HTML(string="<h1>Test</h1>").write_pdf("test_wp.pdf")
+        info["weasyprint"] = "Working"
+    except Exception as e:
+        info["weasyprint_error"] = str(e)
+        import traceback
+        info["weasyprint_trace"] = traceback.format_exc()
     info["env"] = {
         "DB_HOST": os.getenv("DB_HOST") or os.getenv("MYSQLHOST"),
         "DB_PORT": os.getenv("DB_PORT") or os.getenv("MYSQLPORT"),
