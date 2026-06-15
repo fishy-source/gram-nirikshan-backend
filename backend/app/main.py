@@ -398,11 +398,16 @@ async def download_apk():
     """Forces the browser/WhatsApp to download the APK correctly."""
     apk_path = Path("app/static/GramNirikshan.apk")
     if apk_path.exists():
+        headers = {
+            "Content-Disposition": 'attachment; filename="GramNirikshan.apk"',
+            "Content-Type": "application/vnd.android.package-archive",
+            "Cache-Control": "no-cache"
+        }
         return FileResponse(
             path=str(apk_path),
             media_type="application/vnd.android.package-archive",
             filename="GramNirikshan.apk",
-            headers={"Content-Disposition": "attachment; filename=GramNirikshan.apk"}
+            headers=headers
         )
     return HTMLResponse(content="APK not found.", status_code=404)
 
