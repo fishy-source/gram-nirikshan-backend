@@ -142,7 +142,26 @@
 
     <div class="section">
         <h2>Detailed Inspection Report</h2>
-        <div style="white-space: pre-wrap;">{{ ai_report_content }}</div>
+        {% if ai_report_content is mapping %}
+            <div style="margin-bottom: 15px;">
+                <h3 style="color: #2e7d32; font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 4px;">1. Work Description & Key Findings</h3>
+                <div style="white-space: pre-wrap; padding: 10px; background-color: #f9f9f9; border-left: 4px solid #2e7d32;">{{ ai_report_content.get('work_description_and_findings', '') }}</div>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <h3 style="color: #d32f2f; font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 4px;">2. Deficiencies / Issues Identified</h3>
+                <div style="white-space: pre-wrap; padding: 10px; background-color: #fff3f3; border-left: 4px solid #d32f2f;">{{ ai_report_content.get('deficiencies_identified', '') }}</div>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <h3 style="color: #1976d2; font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 4px;">3. Corrective Actions / Recommendations</h3>
+                <div style="white-space: pre-wrap; padding: 10px; background-color: #e3f2fd; border-left: 4px solid #1976d2;">{{ ai_report_content.get('corrective_recommendations', '') }}</div>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <h3 style="color: #f57c00; font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 4px;">4. Conclusion</h3>
+                <div style="white-space: pre-wrap; padding: 10px; background-color: #fff8e1; border-left: 4px solid #f57c00;">{{ ai_report_content.get('conclusion', '') }}</div>
+            </div>
+        {% else %}
+            <div style="white-space: pre-wrap;">{{ ai_report_content }}</div>
+        {% endif %}
     </div>
 
     {% if photos %}

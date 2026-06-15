@@ -140,7 +140,15 @@ Draft the full English report under the following sections:
 3. **Corrective Actions / Recommendations (What can be resolved)**
 4. **Conclusion**
 
-Ensure the report is professional, grammatically correct, and written in clear technical English suitable for senior administration."""
+Ensure the report is professional, grammatically correct, and written in clear technical English suitable for senior administration.
+
+CRITICAL: You MUST respond ONLY with a valid JSON object in the exact following format, without any markdown formatting or code blocks:
+{
+  "work_description_and_findings": "...",
+  "deficiencies_identified": "...",
+  "corrective_recommendations": "...",
+  "conclusion": "..."
+}"""
         ai_draft_en = await call_gemini(prompt, language="en")
         if ai_draft_en and not ai_draft_en.startswith("AI Error:"):
             inspection.ai_report_draft = ai_draft_en
@@ -152,8 +160,16 @@ Ensure the report is professional, grammatically correct, and written in clear t
         prompt_hi = f"""Translate the following professional Gram Panchayat inspection report from English to formal administrative Hindi (Devanagari).
 Ensure the tone is suitable for senior government officials in Uttar Pradesh.
 
-English Report:
+English Report (JSON format):
 {inspection.ai_report_draft}
+
+CRITICAL: You MUST respond ONLY with a valid JSON object in the exact following format, translated into formal Hindi. Do not use markdown code blocks:
+{
+  "work_description_and_findings": "...",
+  "deficiencies_identified": "...",
+  "corrective_recommendations": "...",
+  "conclusion": "..."
+}
 """
         ai_draft_hi = await call_gemini(prompt_hi, language="hi")
         if ai_draft_hi and not ai_draft_hi.startswith("AI Error:"):
@@ -170,14 +186,29 @@ English Report:
     
     try:
         # Build English PDF
+        import json
+        
+        # Parse JSON
+        ai_data_en = {}
+        try:
+            ai_data_en = json.loads(inspection.ai_report_draft.strip('`').strip('json\n')) if inspection.ai_report_draft else {}
+        except Exception:
+            # Fallback for old plain text
+            ai_data_en = {"work_description_and_findings": inspection.ai_report_draft or ""}
+            
+        ai_data_hi = {}
+        try:
+            ai_data_hi = json.loads(ai_report_draft_hi.strip('`').strip('json\n')) if ai_report_draft_hi else {}
+        except Exception:
+            ai_data_hi = {"work_description_and_findings": ai_report_draft_hi or ""}
+
+        # Temporarily pass the parsed dict instead of the raw string for the templates to use
+        orig_draft = inspection.ai_report_draft
+        inspection.ai_report_draft = ai_data_en
         build_pdf_report_weasyprint(inspection, panchayat, engineer, list(photos), list(approvals), output_path_en, lang="en")
         
         # Build Hindi PDF
-        # Temporarily swap the AI draft with the Hindi translation
-        orig_draft = inspection.ai_report_draft
-        if ai_report_draft_hi:
-            inspection.ai_report_draft = ai_report_draft_hi
-            
+        inspection.ai_report_draft = ai_data_hi
         build_pdf_report_weasyprint(inspection, panchayat, engineer, list(photos), list(approvals), output_path_hi, lang="hi")
         
         # Restore original
