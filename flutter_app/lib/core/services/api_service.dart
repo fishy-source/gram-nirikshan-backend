@@ -95,6 +95,15 @@ class ApiService {
   Future<Response> verifyOtp(String mobile, String otp) =>
       _dio.post('/auth/verify-otp', data: {'mobile': mobile, 'otp': otp});
 
+  Future<Response> loginWithPassword(String mobile, String password) =>
+      _dio.post('/auth/login', data: {'mobile': mobile, 'password': password});
+
+  Future<Response> changePassword(String oldPassword, String newPassword) =>
+      _dio.post('/auth/change-password', data: {
+        'old_password': oldPassword,
+        'new_password': newPassword,
+      });
+
   // ── Dashboard ─────────────────────────────────────────────────────────────
 
   Future<Response> getDashboardStats() => _dio.get('/dashboard/stats');

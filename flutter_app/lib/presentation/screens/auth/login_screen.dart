@@ -18,9 +18,9 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
   final _mobileController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _otpSent = false;
-  String _otp = '';
+  bool _obscurePassword = true;
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -40,6 +40,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   void dispose() {
     _animController.dispose();
     _mobileController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -110,22 +111,20 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _otpSent ? context.tr('enter_otp') : context.tr('login'),
+                              context.tr('login'),
                               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold,
                                   color: AppTheme.primaryColor),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              _otpSent
-                                  ? (context.watch<LanguageProvider>().isHindi 
-                                      ? '${_mobileController.text} पर OTP भेजा गया' 
-                                      : 'OTP sent to ${_mobileController.text}')
-                                  : context.tr('enter_mobile'),
+                              context.tr('enter_mobile'),
                               style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                             ),
                             const SizedBox(height: 24),
 
-                            if (!_otpSent) _buildMobileInput() else _buildOTPInput(),
+                            _buildMobileInput(),
+                            const SizedBox(height: 16),
+                            _buildPasswordInput(),
                             const SizedBox(height: 24),
 
                             Consumer<AuthProvider>(
@@ -159,17 +158,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                         ? const SizedBox(width: 24, height: 24,
                                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                         : Text(
-                                            _otpSent ? context.tr('verify') : context.tr('send_otp'),
+                                            context.tr('login'),
                                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                                           ),
                                   ),
-                                  if (_otpSent) ...[
-                                    const SizedBox(height: 12),
-                                    TextButton(
-                                      onPressed: () => setState(() => _otpSent = false),
-                                      child: Text(context.tr('change_number'), style: const TextStyle(color: AppTheme.secondaryColor)),
-                                    ),
-                                  ],
                                 ],
                               ),
                             ),
@@ -220,55 +212,46 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildOTPInput() {
+  Widget _buildPasswordInput() {
+    final isHindi = context.watch<LanguageProvider>().isHindi;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(context.tr('enter_otp'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppTheme.primaryColor)),
-        const SizedBox(height: 12),
-        PinCodeTextField(
-          appContext: context,
-          length: 6,
-          keyboardType: TextInputType.number,
-          animationType: AnimationType.fade,
-          pinTheme: PinTheme(
-            shape: PinCodeFieldShape.box,
-            borderRadius: BorderRadius.circular(12),
-            fieldHeight: 52,
-            fieldWidth: 44,
-            activeFillColor: AppTheme.primaryColor.withOpacity(0.08),
-            inactiveFillColor: Colors.grey.shade50,
-            selectedFillColor: AppTheme.primaryColor.withOpacity(0.12),
-            activeColor: AppTheme.primaryColor,
-            inactiveColor: Colors.grey.shade300,
-            selectedColor: AppTheme.primaryColor,
+        Text(isHindi ? 'पासवर्ड' : 'Password', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppTheme.primaryColor)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _passwordController,
+          obscureText: _obscurePassword,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.lock_outline, color: AppTheme.primaryColor),
+            hintText: isHindi ? 'पासवर्ड दर्ज करें' : 'Enter Password',
+            suffixIcon: IconButton(
+              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: AppTheme.primaryColor),
+              onPressed: () {
+                setState(() {
+                  _obscurePassword = !_obscurePassword;
+                });
+              },
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            filled: true,
+            fillColor: Colors.grey[50],
           ),
-          enableActiveFill: true,
-          onChanged: (v) => _otp = v,
-          onCompleted: (v) => _otp = v,
+          validator: (v) {
+            if (v == null || v.isEmpty) return isHindi ? 'कृपया पासवर्ड दर्ज करें' : 'Please enter password';
+            return null;
+          },
         ),
       ],
     );
   }
 
   Future<void> _handleAction(AuthProvider auth) async {
-    if (!_otpSent) {
-      if (!_formKey.currentState!.validate()) return;
-      final success = await auth.sendOTP(_mobileController.text.trim());
-      if (success) {
-        setState(() => _otpSent = true);
-      }
-    } else {
-      if (_otp.length < 6) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('invalid_otp_err'))),
-        );
-        return;
-      }
-      final success = await auth.verifyOTP(_mobileController.text.trim(), _otp);
-      if (success && mounted) {
-        Navigator.pushReplacementNamed(context, '/welcome');
-      }
+    if (!_formKey.currentState!.validate()) return;
+    final success = await auth.login(_mobileController.text.trim(), _passwordController.text);
+    if (success && mounted) {
+      Navigator.pushReplacementNamed(context, '/welcome');
     }
   }
 }
+

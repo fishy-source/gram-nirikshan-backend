@@ -172,8 +172,11 @@
         <div class="photo-grid">
             {% for photo in photos %}
             <div class="photo-item">
-                <img src="{{ photo.absolute_path }}" alt="स्थल का चित्र">
-                <div class="photo-caption">{{ photo.caption or 'स्थल का चित्र' }}</div>
+                <img src="{{ photo.absolute_path }}" alt="स्थल की तस्वीर">
+                <div class="photo-caption">{{ photo.caption or 'स्थल की तस्वीर' }}</div>
+                {% if photo.latitude and photo.longitude %}
+                <div style="font-size: 9pt; color: #555; text-align: center; margin-top: 4px;">अक्षांश: {{ photo.latitude | round(6) }}, देशांतर: {{ photo.longitude | round(6) }}</div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

@@ -36,13 +36,21 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> sendOTP(String mobile) async {
+  Future<bool> login(String mobile, String password) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      await _api.sendOtp(mobile);
+      final response = await _api.loginWithPassword(mobile, password);
+      final data = response.data;
+
+      await _storage.write(key: AppConstants.accessTokenKey, value: data['access_token']);
+      await _storage.write(key: AppConstants.refreshTokenKey, value: data['refresh_token']);
+
+      _currentUser = UserModel.fromJson(data['user']);
+      await _storage.write(key: AppConstants.userDataKey, value: jsonEncode(data['user']));
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -54,21 +62,13 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> verifyOTP(String mobile, String otp) async {
+  Future<bool> changePassword(String oldPassword, String newPassword) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await _api.verifyOtp(mobile, otp);
-      final data = response.data;
-
-      await _storage.write(key: AppConstants.accessTokenKey, value: data['access_token']);
-      await _storage.write(key: AppConstants.refreshTokenKey, value: data['refresh_token']);
-
-      _currentUser = UserModel.fromJson(data['user']);
-      await _storage.write(key: AppConstants.userDataKey, value: jsonEncode(data['user']));
-
+      await _api.changePassword(oldPassword, newPassword);
       _isLoading = false;
       notifyListeners();
       return true;
