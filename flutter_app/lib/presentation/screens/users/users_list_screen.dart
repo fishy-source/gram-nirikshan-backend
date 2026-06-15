@@ -43,18 +43,48 @@ class _UsersListScreenState extends State<UsersListScreen> {
     }
   }
 
-  Future<void> _deleteUser(UserModel user) async {
+  Future<void> _toggleUserStatus(UserModel user) async {
+    final isBlocking = user.isActive;
+    final action = isBlocking ? 'Block' : 'Unblock';
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Block User'),
-        content: Text('Are you sure you want to block/deactivate ${user.name}? They will no longer be able to log in.'),
+        title: Text('$action User'),
+        content: Text('Are you sure you want to ${action.toLowerCase()} ${user.name}?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
-            child: const Text('Block'),
+            style: ElevatedButton.styleFrom(backgroundColor: isBlocking ? AppTheme.errorColor : AppTheme.successColor),
+            child: Text(action),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await _api.updateUser(user.id, {'is_active': !isBlocking});
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('User ${action.toLowerCase()}ed successfully')));
+      _loadUsers();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to ${action.toLowerCase()} user: $e')));
+    }
+  }
+
+  Future<void> _deleteUser(UserModel user) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete User', style: TextStyle(color: Colors.red)),
+        content: Text('Are you sure you want to PERMANENTLY DELETE ${user.name}? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete Permanently'),
           ),
         ],
       ),
@@ -64,10 +94,10 @@ class _UsersListScreenState extends State<UsersListScreen> {
 
     try {
       await _api.deleteUser(user.id);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User blocked successfully')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User deleted successfully')));
       _loadUsers();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to block user: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete user. They might be linked to existing inspections.', style: const TextStyle(color: Colors.white)), backgroundColor: Colors.red));
     }
   }
 
@@ -111,10 +141,20 @@ class _UsersListScreenState extends State<UsersListScreen> {
                         ),
                         trailing: isMe
                             ? const Chip(label: Text('You'), backgroundColor: Colors.greenAccent)
-                            : IconButton(
-                                icon: Icon(user.isActive ? Icons.block : Icons.lock_outline, color: user.isActive ? Colors.red : Colors.grey),
-                                tooltip: 'Block User',
-                                onPressed: user.isActive ? () => _deleteUser(user) : null,
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(user.isActive ? Icons.block : Icons.lock_open, color: user.isActive ? Colors.orange : Colors.green),
+                                    tooltip: user.isActive ? 'Block User' : 'Unblock User',
+                                    onPressed: () => _toggleUserStatus(user),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_forever, color: Colors.red),
+                                    tooltip: 'Delete User',
+                                    onPressed: () => _deleteUser(user),
+                                  ),
+                                ],
                               ),
                       ),
                     );

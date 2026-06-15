@@ -106,6 +106,9 @@ async def delete_user(
             raise HTTPException(status_code=403, detail="Admins can only delete Inspectors (JE).")
 
     await db.delete(user)
-    await db.commit()
-    
+    try:
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Cannot delete user. They are linked to existing inspections or reports. Please block them instead.")
     return MessageResponse(message="User deleted successfully", success=True)
