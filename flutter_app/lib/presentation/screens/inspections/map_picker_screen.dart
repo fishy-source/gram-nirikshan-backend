@@ -59,7 +59,9 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       _getAddressFromLatLng(_selectedLocation!);
       
       _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(_selectedLocation!, 16),
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: _selectedLocation!, zoom: 18, tilt: 60, bearing: 45),
+        ),
       );
     } catch (e) {
       setState(() => _isLoading = false);
@@ -88,7 +90,9 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     _mapController = controller;
     if (_selectedLocation != null) {
       _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(_selectedLocation!, 16),
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: _selectedLocation!, zoom: 18, tilt: 60, bearing: 45),
+        ),
       );
     }
   }
@@ -130,8 +134,11 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                   onMapCreated: _onMapCreated,
                   initialCameraPosition: CameraPosition(
                     target: _selectedLocation ?? const LatLng(26.8467, 80.9462), // Default to UP
-                    zoom: 12,
+                    zoom: 18,
+                    tilt: 60,
+                    bearing: 45,
                   ),
+                  mapType: MapType.satellite,
                   myLocationEnabled: true,
                   myLocationButtonEnabled: false,
                   onCameraMove: _onCameraMove,
