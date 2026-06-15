@@ -12,12 +12,7 @@ nixPkgs = [
   "tcl",
   "tk",
   "libpng",
-  "libxml2",
-  "pango",
-  "cairo",
-  "gdk-pixbuf",
-  "glib",
-  "noto-fonts"
+  "wkhtmltopdf"
 ]
 
 [phases.install]
