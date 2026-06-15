@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../providers/inspection_provider.dart';
@@ -106,12 +107,31 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  void _onMapCreated(GoogleMapController controller) {
+  void _onMapCreated(GoogleMapController controller) async {
     _mapController = controller;
-    if (_markers.isNotEmpty && _markers.first.position != null) {
+    try {
+      final perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        await Geolocator.requestPermission();
+      }
+      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(_markers.first.position, 12),
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(position.latitude, position.longitude),
+            zoom: 18.0,
+            tilt: 60.0, // 3D effect
+            bearing: 45.0,
+          ),
+        ),
       );
+    } catch (e) {
+      // Fallback if location fails
+      if (_markers.isNotEmpty && _markers.first.position != null) {
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(_markers.first.position, 12),
+        );
+      }
     }
   }
 
@@ -134,6 +154,7 @@ class _MapScreenState extends State<MapScreen> {
               target: LatLng(AppConstants.defaultLat, AppConstants.defaultLng),
               zoom: 8.0,
             ),
+            mapType: MapType.satellite, // Google Earth View
             markers: _markers,
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
