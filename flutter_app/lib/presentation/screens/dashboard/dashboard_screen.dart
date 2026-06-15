@@ -259,10 +259,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final user = context.watch<AuthProvider>().currentUser;
     if (user != null && (user.isAdmin || user.role == 'superadmin')) {
       actions.add(_QuickAction(
-        context.read<LanguageProvider>().isHindi ? 'नया यूज़र जोड़ें' : 'Add User', 
+        context.read<LanguageProvider>().isHindi ? 'यूज़र प्रबंधित करें' : 'Manage Users', 
         Icons.person_add_rounded, 
         Colors.deepPurple, 
-        '/users/add'
+        '/users'
       ));
     }
     return Column(

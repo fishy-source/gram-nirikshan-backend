@@ -95,6 +95,7 @@ class _GramNirikshanAppState extends State<GramNirikshanApp> {
         '/reports': (_) => const ReportsScreen(),
         '/map': (_) => const MapScreen(),
         '/calendar': (_) => const CalendarScreen(),
+        '/users': (context) => const UsersListScreen(),
         '/users/add': (_) => const AddUserScreen(),
       },
       onGenerateRoute: (settings) {
@@ -354,6 +355,20 @@ class _ProfileScreen extends StatelessWidget {
         _ProfileTile(Icons.location_city_rounded, context.tr('district'), user?.district ?? 'N/A'),
         _ProfileTile(Icons.business_rounded, context.tr('block'), user?.block ?? 'N/A'),
         const SizedBox(height: 24),
+        
+        // Change Password Button
+        ElevatedButton.icon(
+          onPressed: () => _showChangePasswordBottomSheet(context),
+          icon: const Icon(Icons.lock_reset_rounded),
+          label: Text(context.watch<LanguageProvider>().isHindi ? 'पासवर्ड बदलें' : 'Change Password'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.secondaryColor,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 48),
+          ),
+        ),
+        const SizedBox(height: 12),
+
         ElevatedButton.icon(
           onPressed: () async {
             await context.read<AuthProvider>().logout();
@@ -361,7 +376,10 @@ class _ProfileScreen extends StatelessWidget {
           },
           icon: const Icon(Icons.logout_rounded),
           label: Text(context.tr('logout')),
-          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.errorColor,
+            minimumSize: const Size(double.infinity, 48),
+          ),
         ),
       ]),
     );
@@ -434,6 +452,81 @@ class _ProfileScreen extends StatelessWidget {
                     }
                   },
                 ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showChangePasswordBottomSheet(BuildContext context) {
+    final isHindi = context.read<LanguageProvider>().isHindi;
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isHindi ? 'पासवर्ड बदलें' : 'Change Password',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: oldPasswordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: isHindi ? 'पुराना पासवर्ड' : 'Old Password',
+                    border: const OutlineInputBorder(),
+                  ),
+                  validator: (v) => v!.isEmpty ? (isHindi ? 'ज़रूरी है' : 'Required') : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: newPasswordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: isHindi ? 'नया पासवर्ड' : 'New Password',
+                    border: const OutlineInputBorder(),
+                  ),
+                  validator: (v) => v!.length < 6 ? (isHindi ? 'कम से कम 6 अक्षर' : 'At least 6 characters') : null,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) return;
+                      final success = await context.read<AuthProvider>().changePassword(
+                        oldPasswordController.text,
+                        newPasswordController.text,
+                      );
+                      if (success && ctx.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(isHindi ? 'पासवर्ड सफलतापूर्वक बदल गया' : 'Password changed successfully'),
+                          backgroundColor: Colors.green,
+                        ));
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+                    child: Text(isHindi ? 'सेव करें' : 'Save', style: const TextStyle(color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
