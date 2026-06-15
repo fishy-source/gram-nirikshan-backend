@@ -412,8 +412,7 @@ async def root():
         <img src="/static/icon.png" alt="Gram Nirikshan Logo" style="width: 120px; height: 120px; margin-bottom: 20px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
         <h1>Gram Nirikshan App</h1>
         <p>उत्तर प्रदेश ग्रामीण विकास विभाग के लिए ग्राम पंचायत निरीक्षण ऐप।</p>
-        <a href="/static/GramNirikshan.apk" class="btn" download>📥 Download App (APK)</a><br>
-        <a href="/docs" class="btn-secondary">View API Documentation</a>
+        <a href="/static/GramNirikshan.apk" class="btn" download>📥 Download App (APK)</a>
     </body>
     </html>
     """
