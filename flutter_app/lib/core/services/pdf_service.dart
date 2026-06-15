@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -8,7 +9,7 @@ import 'package:http/http.dart' as http;
 import '../../data/models/models.dart';
 
 class PdfService {
-  static Future<void> generateInspectionReport(InspectionModel inspection, List<PhotoModel> photos, {bool isHindi = true}) async {
+  static Future<String> generateInspectionReport(InspectionModel inspection, List<PhotoModel> photos, {bool isHindi = true}) async {
     final pdf = pw.Document();
 
     // Load Devanagari font for Hindi text
@@ -197,10 +198,11 @@ class PdfService {
       ),
     );
 
-    // Save and Display PDF
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'Inspection_Report_${inspection.id.substring(0, 8)}.pdf',
-    );
+    // Save and Return PDF Path
+    final bytes = await pdf.save();
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/Inspection_Report_${inspection.id.substring(0, 8)}.pdf');
+    await file.writeAsBytes(bytes);
+    return file.path;
   }
 }
