@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from pathlib import Path
 from datetime import datetime
 import os
-from xhtml2pdf import pisa
+from weasyprint import HTML
 from io import BytesIO
 from jinja2 import Environment, FileSystemLoader
 
@@ -47,7 +47,7 @@ def get_absolute_path(rel_path: str) -> Path:
         return path3
     return path
 
-def build_pdf_report_xhtml2pdf(inspection, panchayat, engineer, photos, approvals, output_path: str, lang: str = "en"):
+def build_pdf_report_weasyprint(inspection, panchayat, engineer, photos, approvals, output_path: str, lang: str = "en"):
     env = Environment(loader=FileSystemLoader(str(find_project_root() / "backend" / "app" / "templates")))
     template_name = "report_en.html" if lang == "en" else "report_hi.html"
     template = env.get_template(template_name)
@@ -83,9 +83,8 @@ def build_pdf_report_xhtml2pdf(inspection, panchayat, engineer, photos, approval
         status_hi={"draft": "प्रारूप", "submitted": "प्रस्तुत", "forwarded": "अग्रेषित", "approved": "स्वीकृत", "rejected": "अस्वीकृत"}.get(inspection.status.value.lower(), inspection.status.value.upper()),
     )
     
-    # Generate PDF using xhtml2pdf
-    with open(output_path, "wb") as pdf_file:
-        pisa.CreatePDF(BytesIO(html_out.encode('utf-8')), dest=pdf_file)
+    # Generate PDF using WeasyPrint
+    HTML(string=html_out, base_url=str(find_project_root())).write_pdf(output_path)
 
 
 @router.post("/generate/{inspection_id}", response_model=MessageResponse)
@@ -171,7 +170,7 @@ English Report:
     
     try:
         # Build English PDF
-        build_pdf_report_xhtml2pdf(inspection, panchayat, engineer, list(photos), list(approvals), output_path_en, lang="en")
+        build_pdf_report_weasyprint(inspection, panchayat, engineer, list(photos), list(approvals), output_path_en, lang="en")
         
         # Build Hindi PDF
         # Temporarily swap the AI draft with the Hindi translation
@@ -179,14 +178,14 @@ English Report:
         if ai_report_draft_hi:
             inspection.ai_report_draft = ai_report_draft_hi
             
-        build_pdf_report_xhtml2pdf(inspection, panchayat, engineer, list(photos), list(approvals), output_path_hi, lang="hi")
+        build_pdf_report_weasyprint(inspection, panchayat, engineer, list(photos), list(approvals), output_path_hi, lang="hi")
         
         # Restore original
         inspection.ai_report_draft = orig_draft
 
     except Exception as e:
         import logging
-        logging.getLogger(__name__).error(f"xhtml2pdf PDF generation failed: {str(e)}")
+        logging.getLogger(__name__).error(f"WeasyPrint PDF generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
     # Save PDF report records

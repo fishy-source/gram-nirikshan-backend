@@ -19,4 +19,4 @@ python-dotenv==1.0.0
 aiofiles==23.2.1
 alembic==1.12.1
 cryptography==41.0.7
-xhtml2pdf
+weasyprint
