@@ -69,7 +69,7 @@ async def call_gemini(prompt: str, language: str = "en") -> str:
     fallback_models = [model_name]
     
     # Add standard available models as fallbacks
-    for fallback in ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"]:
+    for fallback in ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]:
         if fallback not in fallback_models:
             fallback_models.append(fallback)
 
@@ -78,12 +78,6 @@ async def call_gemini(prompt: str, language: str = "en") -> str:
         clean_model_name = model_to_try
         if clean_model_name.startswith("models/"):
             clean_model_name = clean_model_name.replace("models/", "")
-            
-        # Map unsupported/deprecated model names to supported ones
-        if clean_model_name == "gemini-1.5-pro":
-            clean_model_name = "gemini-2.5-pro"
-        elif clean_model_name == "gemini-1.5-flash":
-            clean_model_name = "gemini-2.5-flash"
             
         try:
             # Prepend system instruction to prompt for backwards compatibility
