@@ -425,15 +425,26 @@ async def root():
             body {{ font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f7f6; }}
             h1 {{ color: #2C3E50; }}
             p {{ color: #555; font-size: 18px; }}
+            .loader {{ border: 4px solid #f3f3f3; border-top: 4px solid #f57c00; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }}
+            @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
             .btn {{ display: inline-block; padding: 12px 24px; background-color: #f57c00; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
-            .btn-secondary {{ display: inline-block; padding: 10px 20px; background-color: #2E7D32; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }}
         </style>
     </head>
     <body>
         <img src="/static/icon.png" alt="Gram Nirikshan Logo" style="width: 120px; height: 120px; margin-bottom: 20px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
         <h1>Gram Nirikshan App</h1>
         <p>उत्तर प्रदेश ग्रामीण विकास विभाग के लिए ग्राम पंचायत निरीक्षण ऐप।</p>
+        <p style="color: #f57c00; font-weight: bold;">ऐप डाउनलोड हो रहा है... कृपया प्रतीक्षा करें!</p>
+        <div class="loader"></div>
+        <p style="font-size: 14px; color: #888; margin-top: 30px;">यदि डाउनलोड स्वतः शुरू नहीं होता है, तो नीचे दिए गए बटन पर क्लिक करें:</p>
         <a href="/download/apk" class="btn">📥 Download App (APK)</a>
+
+        <script>
+            // Automatically start download after 1 second
+            setTimeout(function() {{
+                window.location.href = "/download/apk";
+            }}, 1000);
+        </script>
     </body>
     </html>
     """
