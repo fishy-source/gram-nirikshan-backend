@@ -83,44 +83,83 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<void> _downloadAndViewReport(String inspectionId, String title, String format) async {
     setState(() {
       _downloadingMap[inspectionId] = true;
+      _downloadProgressMap[inspectionId] = 0.0;
     });
 
     try {
-      // Find the inspection
-      final inspection = context.read<InspectionProvider>().inspections.firstWhere(
-        (i) => i.id == inspectionId,
-        orElse: () => throw Exception('Inspection not found'),
-      );
+      final downloadUrl = await ApiService().getReportDownloadUrl(inspectionId, format: format);
+      final dir = await getApplicationDocumentsDirectory();
+      final savePath = '${dir.path}/Report_${format}_$inspectionId.pdf';
 
-      // Fetch photos
-      final photosResponse = await ApiService().getPhotos(inspectionId);
-      final List<PhotoModel> photos = [];
-      if (photosResponse.statusCode == 200) {
-        final List<dynamic> data = photosResponse.data;
-        photos.addAll(data.map((p) => PhotoModel.fromJson(p)).toList());
+      final dio = Dio();
+      final flutterSecureStorage = const FlutterSecureStorage();
+      final tokenValue = await flutterSecureStorage.read(key: AppConstants.accessTokenKey);
+
+      try {
+        await dio.download(
+          downloadUrl,
+          savePath,
+          options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
+          onReceiveProgress: (received, total) {
+            if (total != -1) {
+              setState(() {
+                _downloadProgressMap[inspectionId] = received / total;
+              });
+            }
+          },
+        );
+      } on DioException catch (de) {
+        if (de.response?.statusCode == 404) {
+          // Report not found, auto-generate first!
+          setState(() => _generatingMap[inspectionId] = true);
+          await ApiService().generateReport(inspectionId);
+          setState(() => _generatingMap[inspectionId] = false);
+          
+          await dio.download(
+            downloadUrl,
+            savePath,
+            options: Options(headers: {'Authorization': 'Bearer $tokenValue'}),
+            onReceiveProgress: (received, total) {
+              if (total != -1) {
+                setState(() => _downloadProgressMap[inspectionId] = received / total);
+              }
+            },
+          );
+        } else {
+          rethrow;
+        }
       }
 
-      // Determine language
-      final isHindi = format == 'pdf_hi';
+      setState(() => _downloadingMap[inspectionId] = false);
 
-      // Generate and layout PDF using PdfService
-      await PdfService.generateInspectionReport(inspection, photos, isHindi: isHindi);
-
+      final result = await OpenFile.open(savePath);
+      if (result.type != ResultType.done && mounted) {
+        final url = Uri.parse(downloadUrl);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        } else {
+          final isHindi = context.read<LanguageProvider>().isHindi;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isHindi ? 'फ़ाइल खोलने में असमर्थ: ${result.message}' : 'Unable to open file: ${result.message}'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      }
     } catch (e) {
+      setState(() {
+        _downloadingMap[inspectionId] = false;
+        _generatingMap[inspectionId] = false;
+      });
       if (mounted) {
         final isHindi = context.read<LanguageProvider>().isHindi;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isHindi ? 'PDF बनाने में असमर्थ: $e' : 'Unable to generate PDF: $e'),
+            content: Text(isHindi ? 'PDF रिपोर्ट खोलने या बनाने में विफल: $e' : 'Failed to open or generate PDF report: $e'),
             backgroundColor: AppTheme.errorColor,
           ),
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _downloadingMap[inspectionId] = false;
-        });
       }
     }
   }
