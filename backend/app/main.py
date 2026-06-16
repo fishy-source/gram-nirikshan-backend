@@ -393,7 +393,7 @@ async def debug_endpoint(seed: bool = False):
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 import os
 
-@app.get("/download/apk", tags=["Root"])
+@app.get("/download/GramNirikshan.apk", tags=["Root"])
 async def download_apk():
     """Forces the browser/WhatsApp to download the APK correctly."""
     apk_path = Path("app/static/GramNirikshan.apk")
@@ -442,12 +442,12 @@ async def root():
         <p style="color: #f57c00; font-weight: bold;">ऐप डाउनलोड हो रहा है... कृपया प्रतीक्षा करें!</p>
         <div class="loader"></div>
         <p style="font-size: 14px; color: #888; margin-top: 30px;">यदि डाउनलोड स्वतः शुरू नहीं होता है, तो नीचे दिए गए बटन पर क्लिक करें:</p>
-        <a href="/download/apk" class="btn">📥 Download App (APK)</a>
+        <a href="/download/GramNirikshan.apk" class="btn">📥 Download App (APK)</a>
 
         <script>
             // Automatically start download after 1 second
             setTimeout(function() {{
-                window.location.href = "/download/apk";
+                window.location.href = "/download/GramNirikshan.apk";
             }}, 1000);
         </script>
     </body>
