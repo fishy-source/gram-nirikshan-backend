@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from pathlib import Path
 from datetime import datetime
 import os
-from weasyprint import HTML
+import pdfkit
 from io import BytesIO
 from jinja2 import Environment, FileSystemLoader
 
@@ -125,21 +125,19 @@ def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, 
             current_user=current_user,
         )
     
-        import tempfile
-        import subprocess
+        options = {
+            "page-size": "A4",
+            "margin-top": "15mm",
+            "margin-right": "15mm",
+            "margin-bottom": "15mm",
+            "margin-left": "15mm",
+            "encoding": "UTF-8",
+            "enable-local-file-access": "",
+            "no-outline": None,
+            "disable-smart-shrinking": "",
+        }
         
-        fd, temp_html = tempfile.mkstemp(suffix=".html")
-        with open(temp_html, "w", encoding="utf-8") as f:
-            f.write(html_out)
-        os.close(fd)
-        
-        # Run WeasyPrint as a subprocess so a segfault/OOM won't kill the Uvicorn worker
-        process = subprocess.run(
-            ["weasyprint", "--base-url", str(find_project_root()), temp_html, output_path],
-            capture_output=True,
-            text=True
-        )
-        os.remove(temp_html)
+        pdfkit.from_string(html_out, output_path, options=options)
         
         # Clean up downscaled images
         for dp in downscaled_paths:
@@ -147,9 +145,6 @@ def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, 
                 os.remove(dp)
             except:
                 pass
-                
-        if process.returncode != 0:
-            raise Exception(f"WeasyPrint subprocess failed: {process.stderr}")
     except Exception as e:
         import traceback
         err_msg = "".join(traceback.format_exception(type(e), e, e.__traceback__))
