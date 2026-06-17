@@ -155,7 +155,7 @@ def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, 
         err_msg = "".join(traceback.format_exception(type(e), e, e.__traceback__))
         import logging
         logging.getLogger(__name__).error(f"Template rendering or PDF generation failed: {err_msg}")
-        raise HTTPException(status_code=500, detail=f"PDF generation failed: {err_msg}")
+        raise Exception(f"PDF generation failed: {err_msg}")
 
 
 @router.post("/generate/{inspection_id}", response_model=MessageResponse)
@@ -292,9 +292,11 @@ CRITICAL: You MUST respond ONLY with a valid JSON object in the exact following 
         inspection.ai_report_draft = orig_draft
 
     except Exception as e:
+        import traceback
+        err_msg = "".join(traceback.format_exception(type(e), e, e.__traceback__))
         import logging
-        logging.getLogger(__name__).error(f"WeasyPrint PDF generation failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+        logging.getLogger(__name__).error(f"WeasyPrint PDF generation failed: {err_msg}")
+        return MessageResponse(success=False, message=f"PDF generation failed: {err_msg}")
 
     try:
         # Save PDF report records
@@ -324,7 +326,7 @@ CRITICAL: You MUST respond ONLY with a valid JSON object in the exact following 
     except Exception as e:
         import traceback
         err_msg = "".join(traceback.format_exception(type(e), e, e.__traceback__))
-        raise HTTPException(status_code=500, detail=f"Save failed: {err_msg}")
+        return MessageResponse(success=False, message=f"Save failed: {err_msg}")
 
     return MessageResponse(
         message="Reports generated successfully",
