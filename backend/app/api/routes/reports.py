@@ -99,11 +99,11 @@ async def generate_report(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Generate both English and Hindi PDF reports using WeasyPrint."""
-    result = await db.execute(select(Inspection).where(Inspection.id == inspection_id))
-    inspection = result.scalar_one_or_none()
-    if not inspection:
-        raise HTTPException(status_code=404, detail="Inspection not found")
+    try:
+        result = await db.execute(select(Inspection).where(Inspection.id == inspection_id))
+        inspection = result.scalar_one_or_none()
+        if not inspection:
+            raise HTTPException(status_code=404, detail="Inspection not found")
 
     result2 = await db.execute(select(Panchayat).where(Panchayat.id == inspection.panchayat_id))
     panchayat = result2.scalar_one_or_none()
@@ -250,13 +250,17 @@ CRITICAL: You MUST respond ONLY with a valid JSON object in the exact following 
     )
     db.add(report_hi)
 
-    await db.commit()
+        await db.commit()
 
-    return MessageResponse(
-        message="Reports generated successfully",
-        success=True,
-        data={"file_name_en": file_name_en, "file_name_hi": file_name_hi},
-    )
+        return MessageResponse(
+            message="Reports generated successfully",
+            success=True,
+            data={"file_name_en": file_name_en, "file_name_hi": file_name_hi},
+        )
+    except Exception as e:
+        import traceback
+        err_msg = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+        raise HTTPException(status_code=500, detail=f"UNCAUGHT ERROR: {err_msg}")
 
 
 @router.get("/download/{inspection_id}")
