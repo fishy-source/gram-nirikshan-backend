@@ -193,19 +193,24 @@ CRITICAL: You MUST respond ONLY with a valid JSON object in the exact following 
         # Build English PDF
         import json
         
-        # Parse JSON
-        ai_data_en = {}
         try:
-            ai_data_en = json.loads(inspection.ai_report_draft.strip('`').strip('json\n')) if inspection.ai_report_draft else {}
-        except Exception:
-            # Fallback for old plain text
-            ai_data_en = {"work_description_and_findings": inspection.ai_report_draft or ""}
-            
-        ai_data_hi = {}
-        try:
-            ai_data_hi = json.loads(ai_report_draft_hi.strip('`').strip('json\n')) if ai_report_draft_hi else {}
-        except Exception:
-            ai_data_hi = {"work_description_and_findings": ai_report_draft_hi or ""}
+            # Parse JSON
+            ai_data_en = {}
+            try:
+                ai_data_en = json.loads(inspection.ai_report_draft.strip('`').strip('json\n')) if inspection.ai_report_draft else {}
+            except Exception:
+                # Fallback for old plain text
+                ai_data_en = {"work_description_and_findings": inspection.ai_report_draft or ""}
+                
+            ai_data_hi = {}
+            try:
+                ai_data_hi = json.loads(ai_report_draft_hi.strip('`').strip('json\n')) if ai_report_draft_hi else {}
+            except Exception:
+                ai_data_hi = {"work_description_and_findings": ai_report_draft_hi or ""}
+        except Exception as e:
+            import traceback
+            err_msg = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+            raise HTTPException(status_code=500, detail=f"JSON parsing failed: {err_msg}")
 
         # Temporarily pass the parsed dict instead of the raw string for the templates to use
         orig_draft = inspection.ai_report_draft
@@ -226,30 +231,35 @@ CRITICAL: You MUST respond ONLY with a valid JSON object in the exact following 
         logging.getLogger(__name__).error(f"WeasyPrint PDF generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
-    # Save PDF report records
-    file_size_en = Path(output_path_en).stat().st_size // 1024
-    report_en = Report(
-        inspection_id=inspection_id,
-        generated_by=current_user.id,
-        file_path=output_path_en,
-        file_name=file_name_en,
-        file_size_kb=file_size_en,
-        report_format="pdf_en",
-    )
-    db.add(report_en)
-
-    file_size_hi = Path(output_path_hi).stat().st_size // 1024
-    report_hi = Report(
-        inspection_id=inspection_id,
-        generated_by=current_user.id,
-        file_path=output_path_hi,
-        file_name=file_name_hi,
-        file_size_kb=file_size_hi,
-        report_format="pdf_hi",
-    )
-    db.add(report_hi)
-
-    await db.commit()
+    try:
+        # Save PDF report records
+        file_size_en = Path(output_path_en).stat().st_size // 1024
+        report_en = Report(
+            inspection_id=inspection_id,
+            generated_by=current_user.id,
+            file_path=output_path_en,
+            file_name=file_name_en,
+            file_size_kb=file_size_en,
+            report_format="pdf_en",
+        )
+        db.add(report_en)
+    
+        file_size_hi = Path(output_path_hi).stat().st_size // 1024
+        report_hi = Report(
+            inspection_id=inspection_id,
+            generated_by=current_user.id,
+            file_path=output_path_hi,
+            file_name=file_name_hi,
+            file_size_kb=file_size_hi,
+            report_format="pdf_hi",
+        )
+        db.add(report_hi)
+    
+        await db.commit()
+    except Exception as e:
+        import traceback
+        err_msg = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+        raise HTTPException(status_code=500, detail=f"Save failed: {err_msg}")
 
     return MessageResponse(
         message="Reports generated successfully",
