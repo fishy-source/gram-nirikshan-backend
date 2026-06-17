@@ -7,12 +7,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     libssl-dev \
     libpango-1.0-0 \
-    libpangocairo-1.0-0 \
     libpangoft2-1.0-0 \
-    libcairo2 \
-    libglib2.0-0 \
+    libjpeg-dev \
+    libopenjp2-7-dev \
     shared-mime-info \
-    libgdk-pixbuf2.0-0 \
     fonts-liberation \
     fonts-noto-core \
     fontconfig \
