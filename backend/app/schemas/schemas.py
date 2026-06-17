@@ -203,6 +203,9 @@ class InspectionCreate(BaseModel):
     inspection_type: Optional[str] = None
     project_name: Optional[str] = None
     project_code: Optional[str] = None
+    igrs_no: Optional[str] = None
+    addressed_to_designation: Optional[str] = None
+    addressed_to_office: Optional[str] = None
     inspection_date: Optional[datetime] = None
     investigator_name: Optional[str] = None
     district: Optional[str] = None
@@ -216,6 +219,9 @@ class InspectionUpdate(BaseModel):
     inspection_type: Optional[str] = None
     project_name: Optional[str] = None
     project_code: Optional[str] = None
+    igrs_no: Optional[str] = None
+    addressed_to_designation: Optional[str] = None
+    addressed_to_office: Optional[str] = None
     observations: Optional[str] = None
     recommendations: Optional[str] = None
     action_taken: Optional[str] = None
@@ -263,6 +269,9 @@ class InspectionResponse(BaseModel):
     inspection_type: Optional[str] = None
     project_name: Optional[str] = None
     project_code: Optional[str] = None
+    igrs_no: Optional[str] = None
+    addressed_to_designation: Optional[str] = None
+    addressed_to_office: Optional[str] = None
     checkin_latitude: Optional[float] = None
     checkin_longitude: Optional[float] = None
     checkin_time: Optional[datetime] = None
@@ -355,6 +364,12 @@ class AIChatResponse(BaseModel):
 
 class AIReportSuggestion(BaseModel):
     inspection_id: str
+
+class AIRefineRequest(BaseModel):
+    inspection_id: str
+    current_draft: str
+    user_prompt: str
+    language: str = "hi"
 
 
 # ─── Notification Schemas ──────────────────────────────────────────────────────

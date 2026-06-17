@@ -233,6 +233,14 @@ class ApiService {
   Future<Response> suggestReport(String inspectionId) =>
       _dio.post('/ai/suggest-report', data: {'inspection_id': inspectionId});
 
+  Future<Response> refineReport(String inspectionId, String currentDraft, String userPrompt, {String language = 'hi'}) =>
+      _dio.post('/ai/refine-report', data: {
+        'inspection_id': inspectionId,
+        'current_draft': currentDraft,
+        'user_prompt': userPrompt,
+        'language': language
+      });
+
   Future<Response> getInspectionApprovals(String inspectionId) =>
       _dio.get('/inspections/$inspectionId/approvals');
 

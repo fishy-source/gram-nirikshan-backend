@@ -81,6 +81,9 @@ CREATE TABLE IF NOT EXISTS inspections (
     inspection_type VARCHAR(100),
     project_name VARCHAR(300),
     project_code VARCHAR(50),
+    igrs_no VARCHAR(100),
+    addressed_to_designation VARCHAR(200),
+    addressed_to_office VARCHAR(200),
     -- GPS Data
     checkin_latitude DECIMAL(10, 8),
     checkin_longitude DECIMAL(11, 8),

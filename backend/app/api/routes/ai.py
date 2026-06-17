@@ -11,7 +11,7 @@ import logging
 
 from app.db.database import get_db
 from app.models.models import Inspection, Panchayat, User
-from app.schemas.schemas import AIChatRequest, AIChatResponse, AIReportSuggestion, MessageResponse
+from app.schemas.schemas import AIChatRequest, AIChatResponse, AIReportSuggestion, AIRefineRequest, MessageResponse
 from app.core.dependencies import get_current_user
 from app.core.config import settings
 
@@ -155,10 +155,62 @@ async def suggest_report(
 
     if has_hindi:
         default_obs = 'निरीक्षण किया गया.'
-        prompt = f"Draft a highly formal and professional Gram Panchayat inspection report (Inspection Memo) in Hindi according to the standards of the Rural Development Department (Gram Panchayat Department).\n\nInspection Details:\n- Title: {inspection.title}\n- Gram Panchayat: {panchayat.name_hindi or panchayat.name if panchayat else 'N/A'} (District: {inspection.district or (panchayat.district if panchayat else 'N/A')}, Block: {inspection.block or (panchayat.block if panchayat else 'N/A')})\n- Inspection Type: {inspection.inspection_type or 'General'}\n- Project/Work Name: {inspection.project_name or 'N/A'} (Code: {inspection.project_code or 'N/A'})\n- Date: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}\n- Inspector/Engineer: {inspection.investigator_name or current_user.name_hindi or current_user.name} (Designation: {current_user.designation or 'Junior Engineer'})\n\nObservations / Notes:\n{inspection.observations or default_obs}\n{inspection.description or ''}\n\nDraft the full Hindi report under the following sections:\n1. **कार्य का विवरण और मुख्य निष्कर्ष (क्या अच्छा था)**: निरीक्षण का विवरण, कार्य की प्रगति और सकारात्मक निष्कर्ष.\n2. **कमियां / पहचानी गई समस्याएं (क्या कमी थी)**: निरीक्षण के दौरान पाई गई तकनीकी, गुणवत्ता संबंधी या प्रशासनिक कमियां.\n3. **सुधारात्मक कार्रवाई / सिफारिशें (कैसे समाधान किया जाए)**: पहचानी गई कमियों को दूर करने के लिए आवश्यक कार्रवाई और सिफारिशें.\n4. **निष्कर्ष**: कार्य की गुणवत्ता पर अंतिम टिप्पणी और आगे के कदम.\n\nEnsure the report is professional, grammatically correct, and written in clear technical standard Hindi suitable for senior administration.\n\nCRITICAL: You MUST respond ONLY with a valid JSON object in the exact following format, without any markdown formatting or code blocks:\n{{\n  \"work_description_and_findings\": \"...\",\n  \"deficiencies_identified\": \"...\",\n  \"corrective_recommendations\": \"...\",\n  \"conclusion\": \"...\"\n}}"
+        desig = getattr(inspection, 'addressed_to_designation', None) or 'खण्ड विकास अधिकारी'
+        office = getattr(inspection, 'addressed_to_office', None) or 'विकास खण्ड अधिकारी का कार्यालय'
+        prompt = f"""Draft a highly formal and professional Gram Panchayat inspection report in Hindi according to the standards of the Rural Development Department. The format must STRICTLY be an official IGRS Nistaran letter (बाबू द्वारा आईजीआरएस निस्तारित करने वाले प्रारूप) written by the Investigator (जांचकर्ता).
+
+Inspection Details:
+- IGRS No: {getattr(inspection, 'igrs_no', 'N/A') or 'N/A'}
+- Title: {inspection.title}
+- Gram Panchayat: {panchayat.name_hindi or panchayat.name if panchayat else 'N/A'}
+- District: {inspection.district or (panchayat.district if panchayat else 'N/A')}
+- Block: {inspection.block or (panchayat.block if panchayat else 'N/A')}
+- Project/Work Name: {inspection.project_name or 'N/A'}
+
+Observations / Notes:
+{inspection.observations or default_obs}
+{inspection.description or ''}
+
+Draft the full Hindi letter matching exactly this structure:
+सेवा में,
+{desig} महोदय,
+{office}, {inspection.block or (panchayat.block if panchayat else '[ब्लॉक का नाम]')}, जनपद {inspection.district or (panchayat.district if panchayat else '[जनपद का नाम]')}
+
+विषय: आईजीआरएस शिकायत संख्या {getattr(inspection, 'igrs_no', 'N/A') or '[IGRS No]'} के निस्तारण के संबंध में।
+
+महोदय,
+[Here explain the background/context of the inspection based on the title and project name]
+
+क्या परेशानी थी (Problem Identified):
+[Explain the deficiencies or issues found during the inspection based on the Observations]
+
+क्या निस्तारण किया गया (Action Taken / Resolution):
+[Explain the recommendations or corrective actions taken to resolve the issue]
+
+अतः महोदय की सेवा में आख्या प्रस्तुत है।
+
+CRITICAL: Do NOT output JSON. Output ONLY the plain text letter exactly as requested above."""
         response = await call_gemini(prompt, "hi")
     else:
-        prompt = f"Draft a highly formal and professional Gram Panchayat inspection report (Inspection Memo) in English according to the standards of the Rural Development Department.\n\nInspection Details:\n- Title: {inspection.title}\n- Gram Panchayat: {panchayat.name or panchayat.name_hindi if panchayat else 'N/A'} (District: {inspection.district or (panchayat.district if panchayat else 'N/A')}, Block: {inspection.block or (panchayat.block if panchayat else 'N/A')})\n- Inspection Type: {inspection.inspection_type or 'General'}\n- Project/Work Name: {inspection.project_name or 'N/A'} (Code: {inspection.project_code or 'N/A'})\n- Date: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}\n- Inspector/Engineer: {inspection.investigator_name or current_user.name or current_user.name_hindi} (Designation: {current_user.designation or 'Junior Engineer'})\n\nObservations / Notes:\n{inspection.observations or 'Site inspection conducted.'}\n{inspection.description or ''}\n\nDraft the full English report under the following sections:\n1. **Work Description & Key Findings (What was good)**\n2. **Deficiencies / Issues Identified (What was lacking)**\n3. **Corrective Actions / Recommendations (What can be resolved)**\n4. **Conclusion**\n\nEnsure the report is professional, grammatically correct, and written in clear technical English suitable for senior administration.\n\nCRITICAL: You MUST respond ONLY with a valid JSON object in the exact following format, without any markdown formatting or code blocks:\n{{\n  \"work_description_and_findings\": \"...\",\n  \"deficiencies_identified\": \"...\",\n  \"corrective_recommendations\": \"...\",\n  \"conclusion\": \"...\"\n}}"
+        desig = getattr(inspection, 'addressed_to_designation', None) or 'Block Development Officer'
+        office = getattr(inspection, 'addressed_to_office', None) or 'Office of the Block Development Officer'
+        prompt = f"""Draft a highly formal and professional Gram Panchayat inspection report (Inspection Memo) in English according to the standards of the Rural Development Department.
+
+Inspection Details:
+- IGRS No: {getattr(inspection, 'igrs_no', 'N/A') or 'N/A'}
+- Title: {inspection.title}
+- Gram Panchayat: {panchayat.name or panchayat.name_hindi if panchayat else 'N/A'}
+- District: {inspection.district or (panchayat.district if panchayat else 'N/A')}
+- Block: {inspection.block or (panchayat.block if panchayat else 'N/A')}
+- Project/Work Name: {inspection.project_name or 'N/A'}
+- Date: {str(inspection.inspection_date)[:10] if inspection.inspection_date else 'N/A'}
+
+Observations / Notes:
+{inspection.observations or 'Site inspection conducted.'}
+{inspection.description or ''}
+
+Draft a formal plain text letter addressed to the {desig}, {office}. Detail the problem identified and the resolution/action taken.
+CRITICAL: Do NOT output JSON. Output ONLY plain text."""
         response = await call_gemini(prompt, "en")
 
     # Store AI draft
@@ -181,3 +233,40 @@ async def inspection_guide(
 
     response = await call_gemini(prompt, language)
     return AIChatResponse(response=response)
+
+@router.post("/refine-report", response_model=AIChatResponse)
+async def refine_report(
+    request: AIRefineRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Refines an existing AI report draft based on a user's prompt."""
+    result = await db.execute(select(Inspection).where(Inspection.id == request.inspection_id))
+    inspection = result.scalar_one_or_none()
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+
+    lang_str = "Hindi" if request.language == "hi" else "English"
+    
+    prompt = f"""You are a professional assistant for the Rural Development Department.
+The user wants to refine and correct an inspection report based on their instructions.
+
+CURRENT REPORT:
+{request.current_draft}
+
+USER INSTRUCTIONS (Refinement prompt):
+{request.user_prompt}
+
+TASK:
+Rewrite the CURRENT REPORT applying the USER INSTRUCTIONS. 
+Maintain the same professional tone, format, and language ({lang_str}).
+Do NOT output any markdown blocks, JSON, or explanations. ONLY output the finalized plain text report."""
+
+    response = await call_gemini(prompt, request.language)
+
+    # Store updated AI draft
+    inspection.ai_report_draft = response
+    await db.flush()
+
+    return AIChatResponse(response=response)
+

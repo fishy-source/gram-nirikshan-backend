@@ -107,6 +107,9 @@ class InspectionModel {
   final String? inspectionType;
   final String? projectName;
   final String? projectCode;
+  final String? igrsNo;
+  final String? addressedToDesignation;
+  final String? addressedToOffice;
   final double? checkinLatitude;
   final double? checkinLongitude;
   final DateTime? checkinTime;
@@ -136,6 +139,7 @@ class InspectionModel {
     required this.id, required this.inspectionId, required this.panchayatId,
     required this.engineerId, required this.status, required this.title,
     this.description, this.inspectionType, this.projectName, this.projectCode,
+    this.igrsNo, this.addressedToDesignation, this.addressedToOffice,
     this.checkinLatitude, this.checkinLongitude, this.checkinTime, this.checkinAddress,
     this.checkoutLatitude, this.checkoutLongitude, this.checkoutTime, this.checkoutAddress,
     this.distanceCoveredKm, this.observations, this.recommendations, this.actionTaken,
@@ -151,6 +155,9 @@ class InspectionModel {
         status: json['status'], title: json['title'],
         description: json['description'], inspectionType: json['inspection_type'],
         projectName: json['project_name'], projectCode: json['project_code'],
+        igrsNo: json['igrs_no'],
+        addressedToDesignation: json['addressed_to_designation'],
+        addressedToOffice: json['addressed_to_office'],
         checkinLatitude: (json['checkin_latitude'] as num?)?.toDouble(),
         checkinLongitude: (json['checkin_longitude'] as num?)?.toDouble(),
         checkinTime: json['checkin_time'] != null ? DateTime.parse(json['checkin_time']) : null,

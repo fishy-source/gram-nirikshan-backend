@@ -33,6 +33,9 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
   final _investigatorNameController = TextEditingController();
   final _districtController = TextEditingController();
   final _blockController = TextEditingController();
+  final _igrsNoController = TextEditingController();
+  final _addressedToDesignationController = TextEditingController();
+  final _addressedToOfficeController = TextEditingController();
   
   String? _selectedPanchayatId;
   String? _selectedType;
@@ -81,6 +84,9 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
     _investigatorNameController.dispose();
     _districtController.dispose();
     _blockController.dispose();
+    _igrsNoController.dispose();
+    _addressedToDesignationController.dispose();
+    _addressedToOfficeController.dispose();
     _mapController?.dispose();
     super.dispose();
   }
@@ -509,6 +515,9 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
       'investigator_name': _investigatorNameController.text.trim().isEmpty ? null : _investigatorNameController.text.trim(),
       'district': _districtController.text.trim().isEmpty ? null : _districtController.text.trim(),
       'block': _blockController.text.trim().isEmpty ? null : _blockController.text.trim(),
+      'igrs_no': _igrsNoController.text.trim().isEmpty ? null : _igrsNoController.text.trim(),
+      'addressed_to_designation': _addressedToDesignationController.text.trim().isEmpty ? null : _addressedToDesignationController.text.trim(),
+      'addressed_to_office': _addressedToOfficeController.text.trim().isEmpty ? null : _addressedToOfficeController.text.trim(),
     };
 
     _executeWorkflow(data);
@@ -843,6 +852,32 @@ class _NewInspectionScreenState extends State<NewInspectionScreen> {
                                 labelText: context.tr('description'),
                                 prefixIcon: const Icon(Icons.description, color: AppTheme.primaryColor),
                                 alignLabelWithHint: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Addressed To Designation
+                            TextFormField(
+                              controller: _addressedToDesignationController,
+                              decoration: InputDecoration(
+                                labelText: context.read<LanguageProvider>().isHindi ? 'पद नाम (अधिकारी जिसको पत्र भेजना है)' : 'Addressed To Designation',
+                                prefixIcon: const Icon(Icons.person_outline, color: AppTheme.primaryColor),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Addressed To Office
+                            TextFormField(
+                              controller: _addressedToOfficeController,
+                              decoration: InputDecoration(
+                                labelText: context.read<LanguageProvider>().isHindi ? 'कार्यालय का नाम' : 'Addressed To Office',
+                                prefixIcon: const Icon(Icons.business, color: AppTheme.primaryColor),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 filled: true,
                                 fillColor: Colors.grey[50],

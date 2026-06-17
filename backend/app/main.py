@@ -66,13 +66,23 @@ async def lifespan(app: FastAPI):
                 ("investigator_name", "VARCHAR(200)"),
                 ("district", "VARCHAR(100)"),
                 ("block", "VARCHAR(100)"),
-                ("map_image_path", "VARCHAR(500)")
+                ("map_image_path", "VARCHAR(500)"),
+                ("igrs_no", "VARCHAR(100)"),
+                ("addressed_to_designation", "VARCHAR(200)"),
+                ("addressed_to_office", "VARCHAR(200)")
             ]:
                 try:
                     await conn.execute(text(f"ALTER TABLE inspections ADD COLUMN {col_name} {col_type} NULL"))
                     logger.info(f"Successfully added column {col_name} to inspections table.")
                 except Exception as col_err:
                     logger.warning(f"Column {col_name} could not be added (it might already exist): {col_err}")
+            
+            # Users table migrations
+            try:
+                await conn.execute(text("ALTER TABLE users ADD COLUMN hashed_password VARCHAR(255) NULL"))
+                logger.info("Successfully added hashed_password to users table.")
+            except Exception as e:
+                logger.warning(f"Column hashed_password could not be added to users: {e}")
 
         # Ensure upload directories exist
         for subdir in ["photos", "documents", "reports", "photos/thumbnails"]:
@@ -400,12 +410,11 @@ async def download_apk():
     if apk_path.exists():
         headers = {
             "Content-Disposition": 'attachment; filename="GramNirikshan.apk"',
-            "Content-Type": "application/vnd.android.package-archive",
             "Cache-Control": "no-cache"
         }
         return FileResponse(
             path=str(apk_path),
-            media_type="application/vnd.android.package-archive",
+            media_type="application/octet-stream",
             filename="GramNirikshan.apk",
             headers=headers
         )
@@ -441,8 +450,8 @@ async def root():
         <p>उत्तर प्रदेश ग्रामीण विकास विभाग के लिए ग्राम पंचायत निरीक्षण ऐप।</p>
         <p style="color: #f57c00; font-weight: bold;">ऐप डाउनलोड हो रहा है... कृपया प्रतीक्षा करें!</p>
         <div class="loader"></div>
-        <p style="font-size: 14px; color: #888; margin-top: 30px;">यदि डाउनलोड स्वतः शुरू नहीं होता है, तो नीचे दिए गए बटन पर क्लिक करें:</p>
-        <a href="/download/GramNirikshan.apk" class="btn">📥 Download App (APK)</a>
+        <p style="font-size: 14px; color: #888; margin-top: 30px;">यहाँ क्लिक करने पर ऐप डाउनलोड होगा, फिर उसे ओपन करके इंस्टॉल करें:</p>
+        <a href="/download/GramNirikshan.apk" download="GramNirikshan.apk" class="btn">🚀 Download App (APK)</a>
 
         <script>
             // Automatically start download after 1 second

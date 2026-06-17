@@ -25,13 +25,16 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late TextEditingController _remarksCtrl;
+  late TextEditingController _refinePromptCtrl;
   bool _gpsLoading = false;
+  bool _isRefining = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _remarksCtrl = TextEditingController();
+    _refinePromptCtrl = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<InspectionProvider>().loadInspectionDetail(widget.inspectionId);
       context.read<InspectionProvider>().loadApprovalHistory(widget.inspectionId);
@@ -42,6 +45,7 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
   void dispose() {
     _tabController.dispose();
     _remarksCtrl.dispose();
+    _refinePromptCtrl.dispose();
     super.dispose();
   }
 
@@ -195,11 +199,65 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen>
             _buildTextCard(context.tr('action_taken'), inspection.actionTaken!),
           ],
           const SizedBox(height: 16),
-          // AI Suggested Report Card
-          if (inspection.aiReportDraft != null && inspection.aiReportDraft!.isNotEmpty) ...[
-            _buildTextCard(context.tr('ai_draft'), inspection.aiReportDraft!),
-            const SizedBox(height: 8),
-            Row(
+            // AI Suggested Report Card
+            if (inspection.aiReportDraft != null && inspection.aiReportDraft!.isNotEmpty) ...[
+              _buildTextCard(context.tr('ai_draft'), inspection.aiReportDraft!),
+              const SizedBox(height: 8),
+
+              // Refine Report UI
+              Container(
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)]),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.read<LanguageProvider>().isHindi ? 'अतिरिक्त निर्देश (Additional Prompt)' : 'Additional Prompt', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primaryColor)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _refinePromptCtrl,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        hintText: context.read<LanguageProvider>().isHindi ? 'उदाहरण: इसे और छोटा करें' : 'Example: Make it shorter',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isRefining ? null : () async {
+                          if (_refinePromptCtrl.text.trim().isEmpty) return;
+                          setState(() { _isRefining = true; });
+                          try {
+                            final lang = context.read<LanguageProvider>().isHindi ? 'hi' : 'en';
+                            await ApiService().refineReport(inspection.id, inspection.aiReportDraft!, _refinePromptCtrl.text.trim(), language: lang);
+                            await context.read<InspectionProvider>().loadInspectionDetail(inspection.id);
+                            _refinePromptCtrl.clear();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.read<LanguageProvider>().isHindi ? 'रिपोर्ट सफलतापूर्वक सही की गई!' : 'Report refined successfully!'), backgroundColor: AppTheme.successColor));
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.errorColor));
+                            }
+                          } finally {
+                            if (mounted) setState(() { _isRefining = false; });
+                          }
+                        },
+                        icon: _isRefining ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.auto_fix_high, size: 16, color: Colors.white),
+                        label: Text(context.read<LanguageProvider>().isHindi ? 'रिपोर्ट सही करें (Refine Report)' : 'Refine Report', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.secondaryColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
