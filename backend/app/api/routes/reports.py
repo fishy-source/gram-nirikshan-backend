@@ -47,6 +47,24 @@ def get_absolute_path(rel_path: str) -> Path:
         return path3
     return path
 
+def downscale_image(image_path: str, max_size: int = 800) -> str:
+    from PIL import Image
+    import tempfile
+    import os
+    try:
+        if not os.path.exists(image_path):
+            return image_path
+        img = Image.open(image_path)
+        img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+        fd, temp_path = tempfile.mkstemp(suffix=".jpg")
+        os.close(fd)
+        img.convert("RGB").save(temp_path, format="JPEG", quality=85)
+        return temp_path
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Image downscale failed for {image_path}: {e}")
+        return image_path
+
 def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, output_path: str, lang: str = "en", current_user=None):
     """
     Renders HTML from Jinja templates and converts to PDF using wkhtmltopdf (via pdfkit).
@@ -76,11 +94,30 @@ def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, 
             if abs_map.exists():
                 map_img_path = "file://" + str(abs_map.absolute()).replace('\\', '/')
     
+        # Downscale photos to prevent WeasyPrint OOM
+        import os
+        downscaled_paths = []
+        class PhotoProxy:
+            def __init__(self, p, new_path):
+                self.absolute_path = new_path
+                self.latitude = p.latitude
+                self.longitude = p.longitude
+        
+        proxy_photos = []
+        for p in photos:
+            if p.absolute_path and p.absolute_path.startswith("file://"):
+                actual_path = p.absolute_path.replace("file://", "")
+                new_path = downscale_image(actual_path)
+                downscaled_paths.append(new_path)
+                proxy_photos.append(PhotoProxy(p, "file://" + new_path.replace("\\", "/")))
+            else:
+                proxy_photos.append(p)
+
         html_out = template.render(
             inspection=inspection,
             panchayat=panchayat,
             engineer_name=inspection.investigator_name or (engineer.name_hindi or engineer.name if engineer else "N/A"),
-            photos=photos,
+            photos=proxy_photos,
             approvals=approvals,
             map_image=map_img_path,
             ai_report_content=inspection.ai_report_draft or "",
@@ -90,7 +127,6 @@ def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, 
     
         import tempfile
         import subprocess
-        import os
         
         fd, temp_html = tempfile.mkstemp(suffix=".html")
         with open(temp_html, "w", encoding="utf-8") as f:
@@ -105,6 +141,13 @@ def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, 
         )
         os.remove(temp_html)
         
+        # Clean up downscaled images
+        for dp in downscaled_paths:
+            try:
+                os.remove(dp)
+            except:
+                pass
+                
         if process.returncode != 0:
             raise Exception(f"WeasyPrint subprocess failed: {process.stderr}")
     except Exception as e:
