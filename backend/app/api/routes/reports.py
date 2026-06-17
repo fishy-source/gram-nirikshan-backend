@@ -298,3 +298,19 @@ async def download_report(
         media_type="application/pdf",
         filename=report.file_name,
     )
+
+@router.get("/test-weasyprint")
+async def test_weasyprint():
+    from weasyprint import HTML
+    import tempfile
+    import os
+    try:
+        html = "<h1>Test</h1>"
+        fd, temp_path = tempfile.mkstemp(suffix=".pdf")
+        os.close(fd)
+        HTML(string=html).write_pdf(temp_path)
+        size = os.path.getsize(temp_path)
+        os.remove(temp_path)
+        return {"status": "success", "size": size}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
