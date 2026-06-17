@@ -88,8 +88,25 @@ def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, 
             current_user=current_user,
         )
     
-        # Generate PDF using WeasyPrint
-        HTML(string=html_out, base_url=str(find_project_root())).write_pdf(output_path)
+        import tempfile
+        import subprocess
+        import os
+        
+        fd, temp_html = tempfile.mkstemp(suffix=".html")
+        with open(temp_html, "w", encoding="utf-8") as f:
+            f.write(html_out)
+        os.close(fd)
+        
+        # Run WeasyPrint as a subprocess so a segfault/OOM won't kill the Uvicorn worker
+        process = subprocess.run(
+            ["weasyprint", "--base-url", str(find_project_root()), temp_html, output_path],
+            capture_output=True,
+            text=True
+        )
+        os.remove(temp_html)
+        
+        if process.returncode != 0:
+            raise Exception(f"WeasyPrint subprocess failed: {process.stderr}")
     except Exception as e:
         import traceback
         err_msg = "".join(traceback.format_exception(type(e), e, e.__traceback__))
