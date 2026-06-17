@@ -52,7 +52,6 @@ def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, 
     Renders HTML from Jinja templates and converts to PDF using wkhtmltopdf (via pdfkit).
     Works very well on Railway for both English and complex Hindi layout.
     """
-    import pdfkit
     from app.core.config import settings
     env = Environment(loader=FileSystemLoader(str(find_project_root() / "backend" / "app" / "templates")))
 
@@ -63,8 +62,8 @@ def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, 
     for p in photos:
         abs_p = find_project_root() / p.file_path.lstrip("/")
         if abs_p.exists():
-            # wkhtmltopdf accepts local file paths directly, but requires absolute paths
-            p.absolute_path = str(abs_p.absolute())
+            # WeasyPrint accepts local file paths with file:// scheme
+            p.absolute_path = "file://" + str(abs_p.absolute()).replace('\\', '/')
         else:
             p.absolute_path = ""
 
@@ -72,7 +71,7 @@ def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, 
     if inspection.map_image_path:
         abs_map = find_project_root() / inspection.map_image_path.lstrip("/")
         if abs_map.exists():
-            map_img_path = str(abs_map.absolute())
+            map_img_path = "file://" + str(abs_map.absolute()).replace('\\', '/')
 
     html_out = template.render(
         inspection=inspection,
@@ -86,20 +85,11 @@ def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, 
     )
 
     try:
-        # Generate PDF using pdfkit (wkhtmltopdf)
-        options = {
-            'page-size': 'A4',
-            'margin-top': '20mm',
-            'margin-right': '20mm',
-            'margin-bottom': '20mm',
-            'margin-left': '20mm',
-            'encoding': "UTF-8",
-            'enable-local-file-access': None  # CRITICAL for wkhtmltopdf to read local images
-        }
-        pdfkit.from_string(html_out, output_path, options=options)
+        # Generate PDF using WeasyPrint
+        HTML(string=html_out, base_url=str(find_project_root())).write_pdf(output_path)
     except Exception as e:
         import logging
-        logging.getLogger(__name__).error(f"PDFKit PDF generation failed: {str(e)}")
+        logging.getLogger(__name__).error(f"WeasyPrint PDF generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
 
