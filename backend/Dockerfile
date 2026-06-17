@@ -6,6 +6,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     default-libmysqlclient-dev \
     libffi-dev \
     libssl-dev \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libpangoft2-1.0-0 \
+    libcairo2 \
+    libglib2.0-0 \
+    shared-mime-info \
+    libgdk-pixbuf2.0-0 \
     fonts-liberation \
     fonts-noto-core \
     fontconfig \
