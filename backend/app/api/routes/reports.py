@@ -47,7 +47,7 @@ def get_absolute_path(rel_path: str) -> Path:
         return path3
     return path
 
-def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, output_path: str, lang: str = "en"):
+def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, output_path: str, lang: str = "en", current_user=None):
     """
     Renders HTML from Jinja templates and converts to PDF using wkhtmltopdf (via pdfkit).
     Works very well on Railway for both English and complex Hindi layout.
@@ -85,6 +85,7 @@ def build_pdf_report_pdfkit(inspection, panchayat, engineer, photos, approvals, 
             map_image=map_img_path,
             ai_report_content=inspection.ai_report_draft or "",
             status_hi={"draft": "प्रारूप", "submitted": "प्रस्तुत", "forwarded": "अग्रेषित", "approved": "स्वीकृत", "rejected": "अस्वीकृत"}.get(inspection.status.value.lower(), inspection.status.value.upper()),
+            current_user=current_user,
         )
     
         # Generate PDF using WeasyPrint
@@ -221,11 +222,11 @@ CRITICAL: You MUST respond ONLY with a valid JSON object in the exact following 
         
         # Build English PDF
         inspection.ai_report_draft = ai_data_en
-        build_pdf_report_pdfkit(inspection, panchayat, engineer, list(photos), list(approvals), output_path_en, lang="en")
+        build_pdf_report_pdfkit(inspection, panchayat, engineer, list(photos), list(approvals), output_path_en, lang="en", current_user=current_user)
         
         # Build Hindi PDF
         inspection.ai_report_draft = ai_data_hi
-        build_pdf_report_pdfkit(inspection, panchayat, engineer, list(photos), list(approvals), output_path_hi, lang="hi")
+        build_pdf_report_pdfkit(inspection, panchayat, engineer, list(photos), list(approvals), output_path_hi, lang="hi", current_user=current_user)
         
         # Restore original
         inspection.ai_report_draft = orig_draft
